@@ -188,6 +188,7 @@
       <div class="badge">
         <div><b id="whoami">—</b></div>
         <div id="found" style="color:var(--ink-dim)">Discovered 0 / 0</div>
+        <div id="secretsLine" style="color:#8a5a3b;display:none">Secrets 0 / 0</div>
       </div>
       <div class="badge speed">
         <label for="spd">Walk speed <b id="spdVal">1.5×</b></label>
@@ -761,12 +762,57 @@ const CONTENT = {
         <p style="color:var(--ink-dim)">Based in Dhaka, Bangladesh · working remotely.</p>`
     },
 
-    /* ================= secret ================= */
+    /* ================= hidden things ================= */
     {
       id:"cow", kind:"plant", tile:[46,21], w:1, h:1, label:"???", secret:true,
       title:"You found the cow", tag:"secret",
-      html:`<p style="font-size:34px;margin:0 0 10px">🐄</p>
-            <p>It flies. That's the whole joke.</p>`
+      html:`<p style="font-size:34px;margin:0 0 10px">&#128004;</p>
+            <p>It flies. That's the whole joke, and I've never got tired of it.</p>`
+    },
+    {
+      id:"ball", kind:"football", tile:[9,41], w:1, h:1, label:"???", secret:true,
+      title:"A football in the long grass", tag:"secret",
+      html:`<p style="font-size:34px;margin:0 0 10px">&#9917;</p>
+            <p>I play whenever I can get a game together. It's the only hour of the week where
+            nothing is asynchronous and nobody can file a bug.</p>`
+    },
+    {
+      id:"tea", kind:"teacup", tile:[47,8], w:1, h:1, label:"???", secret:true,
+      title:"Someone left the tea", tag:"secret",
+      html:`<p style="font-size:34px;margin:0 0 10px">&#9749;</p>
+            <p>Cha, usually going cold next to a build that's still running.</p>
+            <p style="color:var(--ink-dim)">Roughly 4,000 commits last year happened somewhere
+            behind a cup like this one.</p>`
+    },
+    {
+      id:"toys", kind:"toybox", tile:[16,28], w:2, h:1, label:"???", secret:true,
+      title:"A small box of toys", tag:"secret",
+      html:`<p style="font-size:34px;margin:0 0 10px">&#129528;</p>
+            <p>My daughter's. She's the reason the working day has a hard edge at both ends,
+            which turns out to be good for the work as well as for her.</p>`
+    },
+    {
+      id:"chess", kind:"chess", tile:[30,35], w:2, h:1, label:"???", secret:true,
+      title:"A game left mid-move", tag:"secret",
+      html:`<p style="font-size:34px;margin:0 0 10px">&#9822;</p>
+            <p>Strategy games. Same instinct as balancing a live economy: read the board, work
+            out which single thing actually decides the outcome, commit to it.</p>`
+    },
+    {
+      id:"bat", kind:"cricketbat", tile:[57,41], w:1, h:1, label:"???", secret:true,
+      title:"A cricket bat against the fence", tag:"secret",
+      html:`<p style="font-size:34px;margin:0 0 10px">&#127951;</p>
+            <p>We once bolted a controller into the handle of one of these and called it a VR
+            game. It worked — <b>Clemon Cricket</b>, 25 runs in 2 overs, no headset required.</p>`
+    },
+    {
+      id:"rickshaw", kind:"rickshaw", tile:[11,12], w:2, h:1, label:"???", secret:true,
+      title:"A rickshaw, parked", tag:"secret",
+      html:`<p style="font-size:34px;margin:0 0 10px">&#128131;</p>
+            <p>Dhaka. I've been here the whole time — the studio is Canadian, the commits are
+            Bangladeshi, and the overlap window is smaller than anyone would like.</p>
+            <p style="color:var(--ink-dim)">One of my old games had you cycling through a
+            recreation of Old Dhaka. Some places you keep rebuilding.</p>`
     }
   ],
 
@@ -792,14 +838,14 @@ function hash(x,y){ let n = x*374761393 + y*668265263; n = (n^(n>>13))*127412617
 
 /* ---------- buildings ---------- */
 const BUILDINGS = [
-  {id:'about',  label:'ABOUT',                    x:3,  y:3,  w:12, h:9, door:8,  roof:'#8c4b3a'},
-  {id:'games',  label:'COMPETITIVE GAMES',        x:19, y:3,  w:26, h:9, door:31, roof:'#7a3f5e'},
-  {id:'sys',    label:'SYSTEMS & TOOLING',        x:49, y:3,  w:12, h:9, door:54, roof:'#3f5f7a'},
-  {id:'multi',  label:'MULTIPLAYER & LIVE SERVICE',x:3, y:16, w:22, h:9, door:13, roof:'#8a6b34'},
-  {id:'craft',  label:'CRAFT',                    x:49, y:16, w:12, h:9, door:54, roof:'#4a7a52'},
-  {id:'xr',     label:'XR & PHYSICAL INTERFACES', x:3,  y:29, w:24, h:9, door:14, roof:'#5b4a86'},
-  {id:'career', label:'CAREER',                   x:31, y:29, w:15, h:9, door:37, roof:'#7a5a3a'},
-  {id:'contact',label:'CONTACT',                  x:50, y:29, w:11, h:9, door:54, roof:'#3f6f6a'}
+  {id:'about', line:"This one's mine. Desk, monitor, the mug I never wash.",  label:'ABOUT',                    x:3,  y:3,  w:12, h:9, door:8,  roof:'#8c4b3a'},
+  {id:'games', line:"Cabinets in here \u2014 every one of them plays for real money.",  label:'COMPETITIVE GAMES',        x:19, y:3,  w:26, h:9, door:31, roof:'#7a3f5e'},
+  {id:'sys', line:"The unglamorous building. Servers, SDK, the build that used to take a day.",    label:'SYSTEMS & TOOLING',        x:49, y:3,  w:12, h:9, door:54, roof:'#3f5f7a'},
+  {id:'multi', line:"Board games with strangers in them. Netcode in a friendly costume.",  label:'MULTIPLAYER & LIVE SERVICE',x:3, y:16, w:22, h:9, door:13, roof:'#8a6b34'},
+  {id:'craft', line:"My toolbox. Engines, languages, the things I'm actually quick at.",  label:'CRAFT',                    x:49, y:16, w:12, h:9, door:54, roof:'#4a7a52'},
+  {id:'xr', line:"In here: a surfboard, a bicycle, and a cricket bat that thinks it's a controller.",     label:'XR & PHYSICAL INTERFACES', x:3,  y:29, w:24, h:9, door:14, roof:'#5b4a86'},
+  {id:'career', line:"Nine years on a whiteboard. Dhaka to a Canadian studio, gameplay to direction.", label:'CAREER',                   x:31, y:29, w:15, h:9, door:37, roof:'#7a5a3a'},
+  {id:'contact', line:"The terminal. If you want to talk, this is where you'd do it.",label:'CONTACT',                  x:50, y:29, w:11, h:9, door:54, roof:'#3f6f6a'}
 ];
 BUILDINGS.forEach(b=>{ b.a=1; b.at=1; });
 
@@ -1101,6 +1147,60 @@ objs.forEach(o=>{
   if(stray.length) console.warn('Objects outside any building:', stray.join(' | '));
 })();
 
+/* ---------- what he says ---------- */
+const IDLE_LINES = [
+  "Nine years of this. Still not bored.",
+  "Every building here is a part of the job.",
+  "Careful near the water \u2014 the ducks have right of way.",
+  "That pond took longer than some of my games.",
+  "Roofs come off when you walk in. Go on.",
+  "I build the games and the things underneath them.",
+  "Somewhere out here there's a cow that flies.",
+  "The cows are load-bearing. Don't ask.",
+  "Ship it, then make it survive contact with players.",
+  "If it isn't fun in the first sixty seconds, it isn't fun.",
+  "Balance stops being a feeling and becomes statistics.",
+  "Real money on the result changes every decision.",
+  "There are a few things hidden out here about me.",
+  "Most of what keeps players is outside the match.",
+  "Dhaka, remote, and a very small overlap window.",
+  "A build used to take a day. Now it takes an hour."
+];
+let bubble = null;                 // {text, until, lines}
+let lastIdle = 0, idleGap = 460, saidIdx = -1;
+let doorSpoken = null;
+
+function say(text, ms){
+  const dur = ms || 210;
+  bubble = { text: text, born: T, until: T + dur, lines: null };
+}
+function maybeChatter(){
+  if(bubble) return;
+  if(!P.moving) return;
+  if(T - lastIdle < idleGap) return;
+  lastIdle = T;
+  idleGap = 520 + Math.random()*640;
+  let i;
+  do { i = Math.floor(Math.random()*IDLE_LINES.length); } while(i === saidIdx && IDLE_LINES.length > 1);
+  saidIdx = i;
+  say(IDLE_LINES[i], 230);
+}
+/* standing outside a door: say what that building is about, once per approach */
+function doorChatter(){
+  if(insideB){ doorSpoken = null; return; }
+  let closest = null, cd = 1e9;
+  for(const b of BUILDINGS){
+    const dx = P.x - (b.door*TILE + TILE/2);
+    const dy = P.y - ((b.y + b.h)*TILE + 6);
+    const d = Math.hypot(dx, dy);
+    if(d < 40 && d < cd){ cd = d; closest = b; }
+  }
+  if(!closest){ if(cd > 90) doorSpoken = null; return; }
+  if(doorSpoken === closest.id) return;
+  doorSpoken = closest.id;
+  if(closest.line) say(closest.line, 260);
+}
+
 /* ---------- player ---------- */
 const P = { x: 28.5*TILE, y: 30*TILE, w:10, h:12, dir:0, moving:false, anim:0, speed:1.5 };
 
@@ -1261,6 +1361,9 @@ function update(){
     b.at = (b===insideB) ? 0.10 : 1;
     b.a += (b.at - b.a) * 0.16;
   }
+
+  if(bubble && T > bubble.until) bubble = null;
+  if(!blocked){ doorChatter(); maybeChatter(); }
 
   near = findNear();
   const pr = document.getElementById('prompt');
@@ -1615,6 +1718,58 @@ function drawObj(o){
       rr(x+w-4,y+4,3,7,1.5); fill('#48579e'); ink(1.1);
       break;
 
+    case 'football':
+      blob(x+8,y+8,5.4,5.4,C.white,1.5);
+      ctx.save(); ell(x+8,y+8,5.4,5.4); ctx.clip();
+      ctx.beginPath();
+      ctx.moveTo(x+8,y+3.4); ctx.lineTo(x+11.6,y+6.2); ctx.lineTo(x+10.2,y+10.4);
+      ctx.lineTo(x+5.8,y+10.4); ctx.lineTo(x+4.4,y+6.2); ctx.closePath();
+      fill(C.ink);
+      ctx.restore();
+      if(glow){ ctx.globalAlpha=.3; blob(x+8,y+8,5.4,5.4,'#fff',false); ctx.globalAlpha=1; }
+      break;
+    case 'teacup':
+      rr(x+3,y+6,9,7,2); fill(C.white); ink(1.4);
+      rr(x+4,y+7,7,2.4,1); fill(glow?'#c98d4f':'#8a5a3b');
+      ctx.strokeStyle=C.ink; ctx.lineWidth=1.3;
+      ctx.beginPath(); ctx.arc(x+12.6,y+9,2.2,-1.2,1.2); ctx.stroke();
+      rr(x+2,y+13,11,2,1); fill('#cfd8e2'); ink(1.2);
+      ctx.globalAlpha=.5;
+      blob(x+6+Math.sin(T/22)*1,y+3.5,1.5,1.9,C.white,false);
+      blob(x+9+Math.cos(T/19)*1,y+2.5,1.2,1.6,C.white,false);
+      ctx.globalAlpha=1; break;
+    case 'toybox':
+      rr(x+1,y+5,w-2,9,2); fill('#e8563f'); ink(1.5);
+      px(x+2,y+8,w-4,1.4,'#c23f2c');
+      blob(x+5,y+4,2.4,2.4,'#ffd23f',1.2);
+      rr(x+9,y+2,4,4,1); fill('#4cc9f0'); ink(1.2);
+      blob(x+w-4,y+4,2,2,'#7ee787',1.2);
+      break;
+    case 'chess':
+      rr(x+1,y+6,w-2,8,1.5); fill('#f2e2c4'); ink(1.5);
+      for(let i=0;i<4;i++) for(let j=0;j<2;j++)
+        if((i+j)%2===0) px(x+2+i*((w-4)/4), y+7+j*3, (w-4)/4, 3, '#5c4632');
+      ctx.beginPath();
+      ctx.moveTo(x+5,y+6); ctx.lineTo(x+6.5,y+1.5); ctx.lineTo(x+9,y+3);
+      ctx.lineTo(x+8,y+6); ctx.closePath();
+      fill(glow?'#fff':'#e8ecf5'); ink(1.3);
+      break;
+    case 'cricketbat':
+      ctx.save(); ctx.translate(x+8,y+8); ctx.rotate(-0.42);
+      rr(-2.2,-8,4.4,9,1.6); fill('#c9954f'); ink(1.4);
+      rr(-1.2,1,2.4,6,1); fill('#3a4257'); ink(1.3);
+      ctx.restore();
+      blob(x+12,y+12,2.2,2.2,'#e8ecf5',1.2);
+      break;
+    case 'rickshaw':
+      rr(x+3,y+4,w-7,6,2); fill('#2fa36b'); ink(1.5);
+      rr(x+4,y+2,w-9,3,1.2); fill('#e8563f'); ink(1.3);
+      blob(x+3.5,y+12,3.1,3.1,'#3a4257',1.4);
+      blob(x+w-4,y+12,3.1,3.1,'#3a4257',1.4);
+      blob(x+3.5,y+12,1,1,'#8a93a5',false);
+      blob(x+w-4,y+12,1,1,'#8a93a5',false);
+      px(x+w-3,y+6,2,5,'#8a5a3b');
+      break;
     default:
       rr(x+4,y+8,8,7,2); fill('#c9954f'); ink(1.3);
       blob(x+8,y+4,4.4,4.0,'#59ba49'); blob(x+4.5,y+6,3,2.6,C.grassDk); blob(x+11,y+6,3,2.6,C.grassDk);
@@ -1622,6 +1777,17 @@ function drawObj(o){
   ctx.restore();
 
   if(!o.secret) label(o.label, x+w/2, y-4+(o.ldy||0), glow?'#c8541f':C.ink, 7);
+  if(o.secret && !o.seen){
+    const t = T/24 + (o.x+o.y);
+    const a = 0.30 + Math.sin(t)*0.26;
+    if(a > 0.06){
+      ctx.save(); ctx.globalAlpha = a;
+      const g = ctx.createRadialGradient(x+w/2, y+h/2, 1, x+w/2, y+h/2, 15);
+      g.addColorStop(0,'rgba(255,241,160,.85)'); g.addColorStop(1,'rgba(255,241,160,0)');
+      ctx.fillStyle=g; ctx.fillRect(x+w/2-15, y+h/2-15, 30, 30);
+      ctx.restore();
+    }
+  }
   if(!o.seen && !o.secret){
     const bob=Math.sin(T/16)*1.6, my=(o.ldy||0), bx=x+w/2, by=y-13+bob+my;
     ctx.save(); ctx.translate(bx,by);
@@ -2176,6 +2342,79 @@ function drawPlayer(){
   ctx.restore();
 }
 
+let confettiUntil = 0;
+const CONF = [];
+function drawConfetti(){
+  if(T > confettiUntil){ if(CONF.length) CONF.length = 0; return; }
+  if(CONF.length < 90){
+    for(let i=0;i<4;i++) CONF.push({
+      x: camX + Math.random()*(innerWidth/ZOOM),
+      y: camY - 10 - Math.random()*40,
+      vy: 0.6 + Math.random()*1.1,
+      vx: (Math.random()-0.5)*0.5,
+      r: Math.random()*6.283,
+      vr: (Math.random()-0.5)*0.3,
+      c: ['#ff5f8d','#ffd23f','#4cc9f0','#7ee787','#c77dff','#ff8c42'][(Math.random()*6)|0]
+    });
+  }
+  for(const p of CONF){
+    p.x += p.vx; p.y += p.vy; p.r += p.vr;
+    ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.r);
+    ctx.fillStyle = p.c; ctx.fillRect(-1.6, -1, 3.2, 2.2);
+    ctx.restore();
+  }
+}
+
+function drawBubble(){
+  if(!bubble) return;
+  ctx.font = 'bold 6px system-ui, -apple-system, "Segoe UI", sans-serif';
+  if(!bubble.lines){                       // wrap once, then reuse
+    const words = bubble.text.split(' ');
+    const max = 104, out = [];
+    let cur = '';
+    for(const w of words){
+      const t = cur ? cur+' '+w : w;
+      if(ctx.measureText(t).width > max && cur){ out.push(cur); cur = w; }
+      else cur = t;
+    }
+    if(cur) out.push(cur);
+    bubble.lines = out;
+    bubble.w = Math.max(...out.map(l=>ctx.measureText(l).width)) + 12;
+    bubble.h = out.length*8 + 9;
+  }
+  /* pop in over ~9 frames, hold, then fade over the last ~14 */
+  const appear = Math.min(1, (T - bubble.born) / 9);
+  const leave  = Math.min(1, (bubble.until - T) / 14);
+  const k = Math.max(0, Math.min(appear, leave));
+  if(k <= 0.02) return;
+
+  const bw = bubble.w, bh = bubble.h;
+  const bx = P.x - bw/2, by = P.y - 26 - bh;
+  ctx.save();
+  ctx.globalAlpha = k;
+  ctx.translate(P.x, P.y - 26);
+  ctx.scale(0.6 + k*0.4, 0.6 + k*0.4);
+  ctx.translate(-P.x, -(P.y - 26));
+  rr(bx, by, bw, bh, 4); fill(C.cream); ink(1.5);
+  /* tail */
+  ctx.beginPath();
+  ctx.moveTo(P.x - 3.5, by + bh - 0.6);
+  ctx.lineTo(P.x, by + bh + 5.5);
+  ctx.lineTo(P.x + 3.5, by + bh - 0.6);
+  ctx.closePath(); fill(C.cream);
+  ctx.strokeStyle = C.ink; ctx.lineWidth = 1.5; ctx.lineJoin = 'round';
+  ctx.beginPath();
+  ctx.moveTo(P.x - 3.5, by + bh - 0.6);
+  ctx.lineTo(P.x, by + bh + 5.5);
+  ctx.lineTo(P.x + 3.5, by + bh - 0.6);
+  ctx.stroke();
+  ctx.fillStyle = C.ink;
+  ctx.textAlign = 'center';
+  bubble.lines.forEach((l,i)=> ctx.fillText(l, P.x, by + 10 + i*8));
+  ctx.textAlign = 'left';
+  ctx.restore();
+}
+
 function drawFlyingCow(){
   if(!flyCow.active) return;
   ctx.save();
@@ -2267,6 +2506,7 @@ function render(){
   d.push({z:mother.y+4, f:()=>{ ducklings.forEach(k=>drawDuck(k,false)); drawDuck(mother,true); }});
   for(const b of BUILDINGS) d.push({z:(b.y+b.h-1)*TILE, f:()=>drawRoof(b)});
   d.push({z:P.y+6, f:drawPlayer});
+  d.push({z:1e9, f:()=>{ drawConfetti(); drawBubble(); }});   // always on top of the world
   d.sort((a,b)=>a.z-b.z).forEach(k=>k.f());
 
   /* bouncing arrows over doors you haven't opened */
@@ -2344,7 +2584,10 @@ function openModal(title, tag, html, pose){
   document.getElementById('mBody').innerHTML=html;
   modal.classList.add('on'); blip(660);
 }
-function closeModal(){ modal.classList.remove('on'); }
+function closeModal(){
+  modal.classList.remove('on');
+  if(pendingCongrats) setTimeout(showCongrats, 320);
+}
 modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
 
 let toastTimer=null;
@@ -2364,42 +2607,58 @@ function tryInteract(){
   if(first) track('panel:'+near.id);
   openModal(near.title, near.tag, near.html, POSE_BY_ID[near.id]);
 }
+let pendingCongrats = false;
 function updateFound(){
-  const total=objs.filter(o=>!o.secret).length;
-  const got=objs.filter(o=>!o.secret&&o.seen).length;
-  const el=document.getElementById('found');
-  el.textContent=`Discovered ${got} / ${total}` + (got===total?'  ✓ all found':'');
-  if(got===total && !updateFound._done){ updateFound._done=true; track('found-everything'); }
-  if(got===total) el.style.color='var(--good)';
-}
+  const total = objs.filter(o=>!o.secret).length;
+  const got   = objs.filter(o=>!o.secret && o.seen).length;
+  const sTot  = objs.filter(o=>o.secret).length;
+  const sGot  = objs.filter(o=>o.secret && o.seen).length;
 
-/* the contact form composes a mailto: — no backend, nothing leaves the browser */
-const CONTACT_EMAIL = 'hiqbal285@gmail.com';
-function sendMail(e){
-  if(e) e.preventDefault();
-  const subj = (document.getElementById('cSubject')||{}).value || '';
-  const body = (document.getElementById('cBody')||{}).value || '';
-  const url = 'mailto:' + CONTACT_EMAIL +
-              '?subject=' + encodeURIComponent(subj || 'Hello from your portfolio') +
-              '&body=' + encodeURIComponent(body);
-  window.location.href = url;
-  track('contact:compose');
-  blip(760);
-}
-function copyEmail(btn){
-  const done = ()=>{ const t=btn.textContent; btn.textContent='Copied ✓';
-                     setTimeout(()=>btn.textContent=t, 1600); blip(880); };
-  if(navigator.clipboard && navigator.clipboard.writeText){
-    navigator.clipboard.writeText(CONTACT_EMAIL).then(done).catch(()=>fallback());
-  } else fallback();
-  function fallback(){
-    const ta=document.createElement('textarea');
-    ta.value=CONTACT_EMAIL; ta.style.position='fixed'; ta.style.opacity='0';
-    document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); done(); }catch(err){ btn.textContent=CONTACT_EMAIL; }
-    document.body.removeChild(ta);
+  const el = document.getElementById('found');
+  el.textContent = `Discovered ${got} / ${total}` + (got===total ? '  \u2713' : '');
+  if(got===total) el.style.color = 'var(--good)';
+
+  const sl = document.getElementById('secretsLine');
+  if(sGot > 0){
+    sl.style.display = 'block';
+    sl.textContent = `Secrets ${sGot} / ${sTot}` + (sGot===sTot ? '  \u2713' : '');
+  }
+
+  if(got===total && !updateFound._done){
+    updateFound._done = true;
+    track('found-everything');
+    pendingCongrats = true;                    // wait until they close the last panel
   }
 }
+
+function showCongrats(){
+  pendingCongrats = false;
+  const sTot = objs.filter(o=>o.secret).length;
+  const sGot = objs.filter(o=>o.secret && o.seen).length;
+  const mins = Math.max(1, Math.round((Date.now() - startedAt)/60000));
+  const secretLine = sGot === sTot
+    ? `<p><b>And every hidden thing, too.</b> The cow, the football, the tea, the toys, the
+       chess game, the cricket bat and the rickshaw \u2014 all ${sTot} of them.</p>`
+    : `<p>You also found <b>${sGot} of ${sTot}</b> hidden things scattered around the village.
+       ${sGot === 0 ? 'There are seven of them, and they are the ones that say something about me rather than about the work.'
+                    : 'The rest are still out there.'}</p>`;
+  avatarPose = 'trophy'; avT = 0;
+  openModal('You found everything', 'the whole village',
+    `<p style="font-size:30px;margin:0 0 12px">&#127881;</p>
+     <p>That's all ${objs.filter(o=>!o.secret).length} of them \u2014 every building, every cabinet,
+     every panel \u2014 in about ${mins} minute${mins>1?'s':''}. Thank you for actually playing it.</p>
+     ${secretLine}
+     <p>Everything you just walked through is also here as a plain page, if you want to reread it,
+     copy something out of it, or send it to someone who would rather not use a joystick.</p>
+     <p style="margin-top:18px">
+       <button class="cbtn" onclick="goPlain()">Read the plain version &rarr;</button>
+       <button class="cbtn ghost" onclick="closeModal()">Keep wandering</button>
+     </p>`, 'trophy');
+  blip(880); setTimeout(()=>blip(1180), 130); setTimeout(()=>blip(1480), 260);
+  confettiUntil = T + 240;
+}
+function goPlain(){ closeModal(); toggleClassic(true); track('congrats:to-plain'); }
+const startedAt = Date.now();
 
 let audio=null, soundOn=true;
 function blip(freq){
@@ -2449,8 +2708,9 @@ document.getElementById('btnHelp').onclick       = ()=>openModal('How to explore
      <li><b>Close</b> — <b>Esc</b>, or click outside the panel</li>
      <li><b>Plain version</b> — press <b>M</b> or hit "Skip the game"</li>
    </ul>
-   <p>Eight buildings, ${objs.filter(o=>!o.secret).length} things to find, one duck family,
-   five cows, and something that isn't counted.</p>`, 'wave');
+   <p>Eight buildings and ${objs.filter(o=>!o.secret).length} things to read. There are also
+   <b>${objs.filter(o=>o.secret).length} hidden things</b> out in the village that say more about me
+   than about the work \u2014 they glimmer faintly, so keep an eye on the grass.</p>`, 'wave');
 const spd=document.getElementById('spd'), spdVal=document.getElementById('spdVal');
 function setSpeed(v){ P.speed=parseFloat(v); spdVal.textContent=P.speed.toFixed(1)+'\u00d7'; }
 spd.addEventListener('input', e=>setSpeed(e.target.value));
