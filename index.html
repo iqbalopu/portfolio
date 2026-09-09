@@ -1,0 +1,2437 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>Iqbal Hossain — Playable Portfolio</title>
+<meta name="description" content="Iqbal Hossain — game developer and systems architect. Nine years, 25+ shipped titles, laid out as a village you can walk around.">
+<meta name="theme-color" content="#7cc555">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd23f'/%3E%3Cpath d='M12 30c0-12 8-19 20-19s20 7 20 19v6c0 12-9 17-20 17s-20-5-20-17z' fill='%23e9b183'/%3E%3Cpath d='M10 26c2-13 10-19 22-19s20 6 22 19c-6-6-14-8-22-8s-16 2-22 8z' fill='%231b1a20'/%3E%3Ccircle cx='23' cy='33' r='8' fill='%23cfe4f2' stroke='%232b2b33' stroke-width='2.5'/%3E%3Ccircle cx='43' cy='33' r='8' fill='%23cfe4f2' stroke='%232b2b33' stroke-width='2.5'/%3E%3Cpath d='M31 32h4M15 31l-4-2M51 31l4-2' stroke='%232b2b33' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='23' cy='33' r='3' fill='%2333241c'/%3E%3Ccircle cx='43' cy='33' r='3' fill='%2333241c'/%3E%3Cpath d='M26 45q7 5 14 0' stroke='%2333241c' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23ffd23f'/%3E%3Cpath d='M12 30c0-12 8-19 20-19s20 7 20 19v6c0 12-9 17-20 17s-20-5-20-17z' fill='%23e9b183'/%3E%3Cpath d='M10 26c2-13 10-19 22-19s20 6 22 19c-6-6-14-8-22-8s-16 2-22 8z' fill='%231b1a20'/%3E%3Ccircle cx='23' cy='33' r='8' fill='%23cfe4f2' stroke='%232b2b33' stroke-width='2.5'/%3E%3Ccircle cx='43' cy='33' r='8' fill='%23cfe4f2' stroke='%232b2b33' stroke-width='2.5'/%3E%3Cpath d='M31 32h4M15 31l-4-2M51 31l4-2' stroke='%232b2b33' stroke-width='2.5' stroke-linecap='round'/%3E%3Ccircle cx='23' cy='33' r='3' fill='%2333241c'/%3E%3Ccircle cx='43' cy='33' r='3' fill='%2333241c'/%3E%3Cpath d='M26 45q7 5 14 0' stroke='%2333241c' stroke-width='3' fill='none' stroke-linecap='round'/%3E%3C/svg%3E">
+
+<!-- social preview -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="Iqbal Hossain — Playable Portfolio">
+<meta property="og:description" content="Nine years of shipped games, laid out as a village. Walk in through any door — the roof comes off.">
+<meta property="og:site_name" content="Iqbal Hossain">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Iqbal Hossain — Playable Portfolio">
+<meta name="twitter:description" content="Nine years of shipped games, laid out as a village. Walk in through any door — the roof comes off.">
+<!-- To get a picture on the Slack/LinkedIn/X preview card, take a screenshot of the
+     village, upload it next to this file as preview.png, then uncomment these two lines
+     and put your real URL in front of them:
+<meta property="og:image" content="https://YOUR-DOMAIN/preview.png">
+<meta name="twitter:image" content="https://YOUR-DOMAIN/preview.png">
+     Social scrapers cannot read data: URLs, so the image has to be a real hosted file. -->
+<style>
+  :root{
+    --ink:#eef2fa; --ink-dim:#9aa6bf;
+    --bg:#0f1a14; --panel:#141b26; --panel-2:#1c2534; --line:#2e3a4f;
+    --accent:#ffd166; --accent-2:#4cc9f0; --good:#7ee787;
+    --font: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{margin:0; background:var(--bg); color:var(--ink); font-family:var(--font);
+       overflow:hidden; touch-action:none; overscroll-behavior:none;}
+  canvas{display:block; image-rendering:pixelated; image-rendering:crisp-edges;}
+
+  #hud{position:fixed; inset:0; pointer-events:none; z-index:5}
+  .hud-top{position:absolute; top:0; left:0; right:0; padding:10px 12px;
+           display:flex; gap:10px; align-items:flex-start; justify-content:space-between;}
+  .badge{background:#fff6e2; border:3px solid #33241c; border-radius:10px; padding:7px 11px;
+         font-size:12px; line-height:1.4; color:#33241c; box-shadow:0 3px 0 #33241c;}
+  .badge b{color:#c8541f}
+  .badge #found{color:#6b5a4a !important}
+  .hud-left{display:flex; flex-direction:column; gap:8px; pointer-events:auto}
+  .badge.speed{padding:8px 11px}
+  .badge.speed label{display:block; font-size:11px; margin-bottom:6px; color:#6b5a4a; cursor:pointer}
+  .badge.speed label b{color:#c8541f}
+  #spd{-webkit-appearance:none; appearance:none; width:132px; height:10px; margin:0;
+       background:#e9d9bb; border:2px solid #33241c; border-radius:6px; cursor:pointer; display:block}
+  #spd::-webkit-slider-thumb{-webkit-appearance:none; width:18px; height:18px; border-radius:50%;
+       background:#ffd23f; border:3px solid #33241c; cursor:grab; margin-top:-1px}
+  #spd::-webkit-slider-thumb:active{cursor:grabbing; background:#ffb700}
+  #spd::-moz-range-thumb{width:15px; height:15px; border-radius:50%; background:#ffd23f;
+       border:3px solid #33241c; cursor:grab}
+  #spd::-moz-range-track{background:transparent}
+  .hud-btns{display:flex; gap:8px; pointer-events:auto; flex-wrap:wrap; justify-content:flex-end}
+  button.k{font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer;
+           background:#fff6e2; color:#33241c; border:3px solid #33241c; border-radius:9px;
+           padding:7px 11px; box-shadow:0 3px 0 #33241c;}
+  button.k:hover{background:#ffd23f}
+  button.k:active{transform:translateY(3px); box-shadow:none}
+
+  #prompt{position:absolute; left:50%; bottom:100px; transform:translateX(-50%);
+          background:#ffd23f; border:3px solid #33241c; border-radius:10px; color:#33241c;
+          font-weight:700; box-shadow:0 3px 0 #33241c;
+          padding:8px 14px; font-size:13px; white-space:nowrap; display:none;
+          animation:bob 1.4s ease-in-out infinite;}
+  @keyframes bob{0%,100%{transform:translate(-50%,0)}50%{transform:translate(-50%,-4px)}}
+
+  #toast{position:absolute; left:50%; top:74px; transform:translateX(-50%);
+         background:#fff6e2; border:3px solid #33241c; border-radius:10px;
+         box-shadow:0 3px 0 #33241c;
+         padding:9px 16px; font-size:13px; letter-spacing:.10em; color:#33241c; font-weight:700;
+         opacity:0; transition:opacity .35s ease;}
+  #toast.on{opacity:1}
+
+  #minimap{position:absolute; right:12px; bottom:12px; width:160px; height:110px;
+           background:#fff6e2; border:3px solid #33241c; border-radius:10px;
+           box-shadow:0 3px 0 #33241c;}
+
+  #touch{position:absolute; inset:0; display:none; pointer-events:none}
+  #stick{position:absolute; left:26px; bottom:26px; width:124px; height:124px;
+         border:4px solid rgba(51,36,28,.75); border-radius:50%; background:rgba(255,246,226,.45);}
+  #nub{position:absolute; left:50%; top:50%; width:52px; height:52px; margin:-26px 0 0 -26px;
+       border-radius:50%; background:#fff6e2; border:4px solid #33241c;}
+  #abtn{position:absolute; right:30px; bottom:44px; width:84px; height:84px; border-radius:50%;
+        background:#ffd23f; border:4px solid #33241c; color:#33241c; font-weight:700;
+        box-shadow:0 4px 0 #33241c; font-family:var(--font); font-size:15px; pointer-events:auto;}
+
+  #modal{position:fixed; inset:0; z-index:20; display:none; background:rgba(5,8,12,.74);
+         padding:20px; overflow:auto; -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);}
+  #modal.on{display:flex; align-items:center; justify-content:center}
+  .card{width:min(720px,100%); background:var(--panel); border:4px solid #33241c; border-radius:14px;
+        box-shadow:0 6px 0 #33241c; max-height:86vh; display:flex; flex-direction:column;}
+  .card-head{display:flex; align-items:center; gap:16px; padding:16px 18px;
+             border-bottom:2px solid var(--line); background:var(--panel-2);}
+  #avatar{width:104px; height:104px; flex:0 0 104px; border-radius:50%;
+          border:4px solid #33241c; box-shadow:0 4px 0 #33241c; margin:-6px 0 -6px 0;
+          background:radial-gradient(circle at 50% 38%, #ffe081 0%, #ffd23f 62%, #f0b429 100%);}
+  .card-head h2{margin:0; font-size:18px; letter-spacing:.04em; color:var(--accent)}
+  .card-head .tag{font-size:11px; color:var(--ink-dim); margin-left:auto; text-align:right}
+  .card-body{padding:16px; overflow:auto; font-size:13.5px; line-height:1.75}
+  .card-body h3{font-size:13px; color:var(--accent-2); margin:20px 0 6px; letter-spacing:.05em}
+  .card-body h3:first-child{margin-top:0}
+  .card-body p{margin:0 0 12px}
+  .card-body ul{margin:0 0 12px; padding-left:18px}
+  .card-body li{margin:0 0 6px}
+  .card-body a{color:var(--accent)}
+  .card-foot{padding:10px 16px; border-top:2px solid var(--line); text-align:right;
+             font-size:11px; color:var(--ink-dim)}
+  .cform{margin:0 0 14px}
+  .cform input, .cform textarea{
+    width:100%; box-sizing:border-box; font-family:var(--font); font-size:13px;
+    background:var(--panel-2); color:var(--ink); border:2px solid var(--line);
+    border-radius:8px; padding:9px 11px; margin:0 0 9px; resize:vertical;}
+  .cform input:focus, .cform textarea:focus{outline:none; border-color:var(--accent)}
+  .cform input::placeholder, .cform textarea::placeholder{color:#6b7890}
+  .cform-row{display:flex; gap:9px; flex-wrap:wrap}
+  .cbtn{font-family:var(--font); font-size:12.5px; font-weight:700; cursor:pointer;
+    background:var(--accent); color:#33241c; border:2px solid #33241c; border-radius:9px;
+    padding:9px 14px; box-shadow:0 3px 0 #33241c;}
+  .cbtn:hover{background:#ffe081}
+  .cbtn:active{transform:translateY(3px); box-shadow:none}
+  .cbtn.ghost{background:var(--panel-2); color:var(--ink); border-color:var(--line); box-shadow:0 3px 0 var(--line)}
+  .cbtn.ghost:hover{border-color:var(--accent); color:var(--accent)}
+  .chint{font-size:11.5px; color:var(--ink-dim); margin:10px 0 0}
+  .store{display:inline-block; border:2px solid var(--line); background:var(--panel-2);
+         border-radius:9px; padding:7px 12px; margin:0 8px 8px 0; font-size:12px;
+         text-decoration:none; color:var(--ink) !important;}
+  .store:hover{border-color:var(--accent); color:var(--accent) !important}
+  .pill{display:inline-block; border:1px solid var(--line); background:var(--panel-2);
+        padding:3px 8px; margin:0 5px 6px 0; font-size:11.5px}
+  .meter{height:8px; background:var(--panel-2); border:1px solid var(--line); margin:4px 0 12px}
+  .meter i{display:block; height:100%; background:var(--accent-2)}
+  .row{display:flex; gap:10px; align-items:baseline; margin:0 0 3px}
+  .row .yr{color:var(--ink-dim); font-size:11.5px; min-width:104px}
+
+  #intro{position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
+         background:radial-gradient(circle at 50% 34%, #8fd465, #3f7f46 74%); padding:22px; text-align:center;}
+  #intro .box{max-width:600px}
+  #intro h1{font-size:clamp(22px,5vw,36px); margin:0 0 6px; letter-spacing:.09em; color:#fff; text-shadow:0 3px 0 #33241c}
+  #intro .sub{color:#f2ffe4; font-size:13px; margin:0 0 22px; line-height:1.75}
+  .keys{display:flex; gap:8px; justify-content:center; flex-wrap:wrap; margin:0 0 24px}
+  .key{border:2px solid #33241c; background:rgba(255,255,255,.9); padding:8px 12px; font-size:12px; color:#33241c; border-radius:8px}
+  .key b{color:#c8541f}
+  #intro .cta{font-size:15px; padding:14px 28px; border:3px solid #33241c; background:#ffd23f; color:#33241c; border-radius:10px; font-weight:700; box-shadow:0 4px 0 #33241c}
+  .quiet{font-size:11.5px; color:#e8f7d8; margin-top:16px}
+  .quiet a{color:#fff}
+
+  #classic{position:fixed; inset:0; z-index:25; display:none; overflow:auto;
+           background:var(--bg); padding:0 20px 80px;}
+  #classic.on{display:block}
+  .wrap{max-width:760px; margin:0 auto}
+  #classic header{padding:64px 0 34px; border-bottom:2px solid var(--line); margin-bottom:34px}
+  #classic h1{font-size:clamp(24px,5vw,36px); margin:0 0 8px; letter-spacing:.06em}
+  #classic .role{color:var(--accent); font-size:14px; margin:0 0 14px}
+  #classic .blurb{color:var(--ink-dim); font-size:13.5px; line-height:1.8; margin:0}
+  .sec{margin:0 0 40px}
+  .sec > h2{font-size:13px; letter-spacing:.14em; text-transform:uppercase; color:var(--accent-2);
+            border-bottom:1px solid var(--line); padding-bottom:8px; margin:0 0 16px}
+  .sec .card-body{padding:0}
+  #classic .back{position:fixed; top:14px; right:16px; z-index:26}
+
+  /* --- small screens: keep the minimap clear of the LOOK button --- */
+  @media (max-width:600px), (pointer:coarse){
+    button.k{font-size:11px; padding:7px 9px}
+    #minimap{width:104px; height:72px; bottom:auto; top:150px; right:10px}
+    #spd{width:110px}
+    #avatar{width:72px; height:72px; flex:0 0 72px; margin:0}
+    .card-head h2{font-size:15px}
+    #prompt{bottom:150px; font-size:12px; padding:7px 11px}
+    #toast{top:auto; bottom:212px; font-size:12px}
+  }
+</style>
+</head>
+<body>
+
+<canvas id="game"></canvas>
+
+<div id="hud">
+  <div class="hud-top">
+    <div class="hud-left">
+      <div class="badge">
+        <div><b id="whoami">—</b></div>
+        <div id="found" style="color:var(--ink-dim)">Discovered 0 / 0</div>
+      </div>
+      <div class="badge speed">
+        <label for="spd">Walk speed <b id="spdVal">1.5×</b></label>
+        <input type="range" id="spd" min="0.5" max="3.5" step="0.1" value="1.5"
+               aria-label="Walk speed">
+      </div>
+    </div>
+    <div class="hud-btns">
+      <button class="k" id="btnClassic">Skip the game →</button>
+      <button class="k" id="btnHelp">?</button>
+      <button class="k" id="btnSound">♪ on</button>
+    </div>
+  </div>
+  <div id="toast"></div>
+  <div id="prompt">Press <b>E</b></div>
+  <canvas id="minimap" width="160" height="110"></canvas>
+  <div id="touch">
+    <div id="stick"><div id="nub"></div></div>
+    <button id="abtn">LOOK</button>
+  </div>
+</div>
+
+<div id="modal">
+  <div class="card">
+    <div class="card-head">
+      <canvas id="avatar" width="200" height="200" aria-hidden="true"></canvas>
+      <h2 id="mTitle"></h2><span class="tag" id="mTag"></span>
+    </div>
+    <div class="card-body" id="mBody"></div>
+    <div class="card-foot">ESC or click outside to close</div>
+  </div>
+</div>
+
+<div id="intro">
+  <div class="box">
+    <h1 id="introName">—</h1>
+    <p class="sub" id="introSub"></p>
+    <div class="keys">
+      <div class="key"><b>W A S D</b> / arrows — walk</div>
+      <div class="key"><b>E</b> or <b>Space</b> — look at things</div>
+      <div class="key"><b>M</b> — plain text version</div>
+    </div>
+    <button class="k cta" id="btnStart">▶ ENTER THE VILLAGE</button>
+    <p class="quiet">Walk through a doorway and the roof lifts off.
+      In a hurry? <a href="#" id="lnkClassic">read the plain version</a>.</p>
+  </div>
+</div>
+
+<div id="classic">
+  <button class="k back" id="btnBackGame">← Back to the game</button>
+  <div class="wrap">
+    <header><h1 id="cName"></h1><p class="role" id="cRole"></p><p class="blurb" id="cBlurb"></p></header>
+    <div id="cSections"></div>
+  </div>
+</div>
+
+<script>
+
+/* ==================================================================
+   0.  ANALYTICS  —  optional, privacy-friendly, off by default.
+       Set ANALYTICS.provider to 'goatcounter', 'plausible' or 'umami'
+       and fill in the matching field. Leave it as null and nothing loads,
+       no requests are made and no cookies are set.
+
+       goatcounter : free, no cookies — sign up at goatcounter.com,
+                     then site: 'yourname'   (from yourname.goatcounter.com)
+       plausible   : paid — domain: 'yourdomain.com'
+       umami       : self-hosted — src: 'https://your-umami/script.js',
+                     websiteId: '...'
+   ================================================================== */
+const ANALYTICS = {
+  provider: null,          // 'goatcounter' | 'plausible' | 'umami' | null
+  site: '',                // goatcounter code
+  domain: '',              // plausible domain
+  src: '', websiteId: ''   // umami
+};
+
+(function loadAnalytics(){
+  const a = ANALYTICS;
+  if(!a.provider) return;
+  const el = document.createElement('script');
+  el.async = true;
+  if(a.provider === 'goatcounter'){
+    el.src = 'https://gc.zgo.at/count.js';
+    el.setAttribute('data-goatcounter', 'https://' + a.site + '.goatcounter.com/count');
+  } else if(a.provider === 'plausible'){
+    el.src = 'https://plausible.io/js/script.js';
+    el.setAttribute('data-domain', a.domain);
+  } else if(a.provider === 'umami'){
+    el.src = a.src;
+    el.setAttribute('data-website-id', a.websiteId);
+  } else return;
+  document.head.appendChild(el);
+})();
+
+/* One call site for everything worth knowing about a playable page:
+   did they start, what did they read, did they finish, did they bail to the
+   plain version. No-ops entirely when analytics is switched off. */
+function track(name, extra){
+  try{
+    if(!ANALYTICS.provider) return;
+    if(window.goatcounter && window.goatcounter.count)
+      window.goatcounter.count({path:'event/'+name, title:name, event:true});
+    else if(window.plausible) window.plausible(name, extra ? {props:extra} : undefined);
+    else if(window.umami && window.umami.track) window.umami.track(name, extra);
+  }catch(e){}
+}
+
+/* ==================================================================
+   1.  CONTENT — edit this block, nothing else
+   ================================================================== */
+const CONTENT = {
+  name: "IQBAL HOSSAIN",
+  role: "Game developer & systems architect · 9 years · 25+ shipped titles · Dhaka",
+  tagline: "Nine years of shipped games, laid out as a village. Walk in through any door \u2014 the roof comes off.",
+  blurb: "I build games and the systems underneath them — competitive real-money titles, real-time multiplayer at scale, XR experiences driven by custom physical hardware, and the SDKs, servers and build pipelines that keep a portfolio shippable. Unity since 2017, plus Unreal, Godot, native iOS and Android. Currently Technical Director at FlyCow Games, working remotely from Dhaka.",
+
+  objects: [
+    /* ================= ABOUT ================= */
+    {
+      id:"about", kind:"desk", tile:[7,7], w:4, h:2, label:"My desk",
+      title:"About me", tag:"the desk",
+      html:`
+        <h3>Nine years, 25+ shipped titles</h3>
+        <p>I started as a gameplay programmer in Dhaka in 2017 and have shipped games more or
+        less continuously since — arcade titles for brands, VR experiences running on custom-built
+        rigs, real-time multiplayer board games, and competitive real-money mobile titles.</p>
+        <p>Somewhere along the way the interesting problems moved down a layer. These days as much
+        of my work is the SDK, the game servers, the build pipeline and the security tooling as it
+        is the games themselves — because once you are shipping a portfolio rather than a title,
+        the shared layer is what decides how fast the next one ships.</p>
+        <h3>What I'm actually good at</h3>
+        <p>Taking a thing from nothing to shipped, then from shipped to durable. Both halves —
+        the 0&#8209;to&#8209;1 and the 1&#8209;to&#8209;10 — and I've come to prefer the second one.</p>
+        <p>The work is rarely solo: most of what I've shipped came out of close collaboration with
+        designers, artists and other engineers, and the job is as much about making that group
+        fast as it is about the code.</p>
+        <h3>Still hands-on</h3>
+        <p>Roughly <b>4,000 commits in the last year</b> across game clients, backend services and
+        internal tooling. The title says director; the terminal says otherwise.</p>
+        <h3>Off the clock</h3>
+        <p>Football, time with my daughter, and strategy games — which I suspect is the same
+        instinct as the day job: watch the board, work out what actually decides the outcome,
+        commit to it.</p>`
+    },
+
+    /* ================= COMPETITIVE GAMES ================= */
+    {
+      id:"c1", kind:"arcade", tile:[22,6], w:2, h:3, label:"Brick Blaster Cash", accent:"#ff6b6b",
+      title:"Brick Blaster Cash", tag:"competitive · Unity/C# · FlyCow Games",
+      html:`
+        <h3>What it is</h3>
+        <p>A brick breaker rebuilt as a head-to-head skill match with real money on the result.
+        Two modes — Neon Legacy and Arcadia — live on iOS and on Skillz.</p>
+
+        <h3>My part</h3>
+        <p>All of it. I own this title end to end: the mechanic, the build, the release, and the
+        live game after launch.</p>
+
+        <h3>The hard part</h3>
+        <p>Not the physics — the things wrapped around it.</p>
+        <ul>
+          <li><b>Balancing the mechanic.</b> In a cash tournament the game has to reward skill and
+          nothing but skill. Every tuning change moves the whole score distribution, and that
+          distribution is what decides whether a match feels fair to both players and whether the
+          prize structure holds up. Tuning stops being a feel decision and becomes a statistical one.</li>
+          <li><b>Retention.</b> Getting someone to play once is a marketing problem; getting them to
+          come back on day seven is a design and live-ops one, and it is the number the whole
+          business rests on.</li>
+          <li><b>Distribution.</b> Skillz policy keeps real-money titles off Google Play, so there is
+          no Android storefront to lean on and no Samsung listing any more. Reach has to come from
+          the App Store and from inside the Skillz ecosystem, which changes how you think about
+          every acquisition and re-engagement surface.</li>
+        </ul>
+
+        <h3>Content &amp; configuration</h3>
+        <p>Assets ship through Unity <b>Addressables</b>, driven by <b>server-authoritative
+        config</b>: the client asks the server what the rules and the content are, rather than
+        deciding for itself. Tuning changes go live without a store release, and no client gets to
+        claim its own numbers — which matters a great deal when the outcome is worth money.</p>
+
+        <h3>Play it</h3>
+        <p>
+          <a class="store" href="https://apps.apple.com/us/app/brick-blaster-cash-win-money/id6466097629" target="_blank" rel="noopener">App Store →</a>
+          <a class="store" href="https://games.skillz.com/mobile/games/22815" target="_blank" rel="noopener">Skillz →</a>
+        </p>`
+    },
+    {
+      id:"c2", kind:"arcade", tile:[26,6], w:2, h:3, ldy:-10, label:"Bingo Empire", accent:"#4cc9f0",
+      title:"Bingo Empire", tag:"live ops · TypeScript · FlyCow Games",
+      html:`
+        <h3>What it is</h3>
+        <p>Competitive bingo played against live opponents — currently the most active codebase
+        in the studio, and the one I commit to most.</p>
+
+        <h3>My part</h3>
+        <p>Not the bingo board: the admin and live-ops layer around it. I build the systems that
+        reach players between matches — automated email, in-game posts and push notifications,
+        driven from the game server admin.</p>
+
+        <h3>Why that is the interesting half</h3>
+        <p>A competitive title only earns money when people come back, and almost nothing that
+        brings them back happens inside a match. The messaging layer is retention infrastructure:
+        who gets told what, when, on which channel, and whether that fires reliably for every
+        player without anyone running it by hand. Get it wrong and you either lose players or
+        annoy the ones you kept.</p>
+        <p>The same admin layer drives <b>Keno Club</b>.</p>
+        <h3>Play it</h3>
+        <p>
+          <a class="store" href="https://empire.bingo" target="_blank" rel="noopener">empire.bingo →</a>
+          <a class="store" href="https://apps.apple.com/us/app/bingo-empire-win-with-friends/id6769422325" target="_blank" rel="noopener">App Store →</a>
+          <a class="store" href="https://play.google.com/store/apps/details?id=com.flycowgames.bingoempire" target="_blank" rel="noopener">Google Play →</a>
+        </p>`
+    },
+    {
+      id:"cb", kind:"arcade", tile:[30,6], w:2, h:3, label:"Cashout Bingo", accent:"#06d6a0",
+      title:"Cashout Bingo", tag:"competitive · Unity/C# · FlyCow Games",
+      html:`
+        <h3>What it is</h3>
+        <p>Bingo as a real-money skill match, live on iOS and on Skillz. The competitive sibling
+        to Bingo Empire.</p>
+
+        <h3>My part</h3>
+        <p>The content and configuration layer on the client: Unity <b>Addressables</b> for asset
+        delivery, driven by <b>server-authoritative config</b>.</p>
+
+        <h3>Why that architecture</h3>
+        <p>Two problems solved by the same decision.</p>
+        <ul>
+          <li><b>Shipping without shipping.</b> Content and tuning live on the server, so a change
+          reaches players immediately instead of waiting behind an App Store review. In a
+          competitive title where balance is the product, that turnaround <i>is</i> the live-ops
+          capability.</li>
+          <li><b>Trust.</b> If the client decided its own rules, the client could lie about them.
+          Making config authoritative on the server means the device is never the source of truth
+          about anything that decides a payout.</li>
+        </ul>
+        <p>The same approach runs under Brick Blaster Cash and Blinko.</p>
+
+        <h3>Play it</h3>
+        <p>
+          <a class="store" href="https://apps.apple.com/us/app/cashout-bingo-win-real-money/id6449511195" target="_blank" rel="noopener">App Store →</a>
+          <a class="store" href="https://games.skillz.com/mobile/games/86480" target="_blank" rel="noopener">Skillz →</a>
+        </p>`
+    },
+    {
+      id:"c3", kind:"arcade", tile:[34,6], w:2, h:3, label:"Blinko", accent:"#c77dff",
+      title:"Blinko", tag:"competitive · Unity/C# · FlyCow Games",
+      html:`
+        <h3>What it is</h3>
+        <p>A physics drop game, shipped as both a competitive title and a free-to-play one.
+        I work on the competitive build — the one that runs on Skillz.</p>
+
+        <h3>My part</h3>
+        <ul>
+          <li><b>The game mechanic itself</b> — how the drop behaves and what makes a run feel
+          skilful rather than lucky.</li>
+          <li><b>Retention</b> — the systems that give a player a reason to open it again.</li>
+          <li><b>Addressables</b> — Unity's asset delivery, so content loads on demand instead of
+          shipping inside the binary.</li>
+          <li><b>Skillz SDK integration</b> — wiring the game into the tournament platform:
+          match lifecycle, scoring, and the entitlements that come with real money on the result.</li>
+        </ul>
+
+        <h3>Why addressables matter here</h3>
+        <p>Assets load on demand rather than shipping inside the binary, and what loads is decided
+        by <b>server-authoritative config</b> — the same content-and-tuning pipeline that runs under
+        Brick Blaster Cash and Cashout Bingo. The install stays small, tuning goes live without a
+        store review, and the device never decides its own rules.</p>
+
+        <h3>On the three repos</h3>
+        <p>The prototype, the free-to-play build and the Skillz build are deliberately separate
+        repositories, each with its own purpose, rather than one codebase forked three ways and
+        left to drift.</p>
+
+        <h3>Play it</h3>
+        <p>
+          <a class="store" href="https://apps.apple.com/us/app/blinko-cash-real-money/id6746294071" target="_blank" rel="noopener">App Store →</a>
+          <a class="store" href="https://games.skillz.com/mobile/games/69117" target="_blank" rel="noopener">Skillz →</a>
+        </p>`
+    },
+    {
+      id:"c5", kind:"arcade", tile:[38,6], w:2, h:3, label:"+ 6 more", accent:"#ffd166",
+      title:"The rest of the competitive line", tag:"competitive · FlyCow Games",
+      html:`
+        <p>Other titles I've contributed to across the catalogue:</p>
+        <ul>
+          <li><b>Keno Empire</b> — I own the same admin and live-ops automation here as on Bingo
+          Empire: email, posts and notifications.
+          <a class="store" href="https://fb.gg/play/kenoempire" target="_blank" rel="noopener">Play on Facebook →</a></li>
+          <li><b>Cashout Solitaire</b> and <b>Cashout 21</b> — card classics as skill matches</li>
+          <li><b>Poker Blitz</b></li>
+          <li><b>Cashout Cube</b></li>
+          <li><b>Word Search</b></li>
+          <li><b>Liar's Dice</b> — Unity client with a dedicated multiplayer server</li>
+        </ul>`
+    },
+
+    /* ================= MULTIPLAYER & LIVE SERVICE ================= */
+    {
+      id:"m1", kind:"arcade", tile:[7,19], w:2, h:3, label:"Ludo Club", accent:"#ef476f",
+      title:"Ludo Club — Fun Dice Game", tag:"multiplayer · Moonfrog Labs · 2020–21",
+      html:`
+        <h3>What it is</h3>
+        <p>The online multiplayer version of Ludo — the board game, played live against strangers
+        at scale.</p>
+
+        <h3>My part</h3>
+        <p>Production bugs and retention features on a game that was already live and already
+        large.</p>
+
+        <h3>What that work is actually like</h3>
+        <p>Debugging a live multiplayer game is a different discipline from building one. The bug
+        is in someone else's match, on a device you don't have, on a connection you can't
+        reproduce, and the game keeps running while you look for it. You learn to reason from
+        logs and state rather than from a breakpoint.</p>
+        <p>The retention side was the counterpart: features aimed squarely at whether a player
+        opens the app again tomorrow, shipped into a codebase where anything you break is broken
+        for everyone at once.</p>`
+    },
+    {
+      id:"m2", kind:"arcade", tile:[11,19], w:2, h:3, ldy:-10, label:"Parchisi Club", accent:"#ffd166",
+      title:"Parchisi Club", tag:"multiplayer · Moonfrog Labs · 2021–22",
+      html:`
+        <h3>What it is</h3>
+        <p>Multiplayer Parchisi — real-time matches against live opponents.</p>
+
+        <h3>My part</h3>
+        <p><b>Built it from the ground up and took it to production.</b> Both halves: the Unity
+        client and the JavaScript backend behind it.</p>
+
+        <h3>Why this one matters to me</h3>
+        <p>It is the clearest 0&#8209;to&#8209;1 on my record. Starting from nothing on both sides of the
+        wire means every decision is yours — how turns are authoritative, what happens when a
+        player drops mid-match and comes back, how state is reconciled when the client and server
+        disagree, how a room is created, filled and torn down. None of it shows up in a
+        screenshot, and all of it decides whether the game is playable.</p>
+        <p>Owning client and server together also means there's nobody to hand a problem to.
+        That's the part I'd want another engineer to ask me about.</p>`
+    },
+    {
+      id:"m3", kind:"arcade", tile:[15,19], w:2, h:3, label:"ADDA", accent:"#7ee787",
+      title:"ADDA — Callbreak, Hazari, 29 & more", tag:"casual · Moonfrog Labs · 2020",
+      html:`
+        <h3>What it is</h3>
+        <p>A package of classic card, board and casual games living in a single app — Callbreak,
+        Hazari, 29, Solitaire and a set of casual titles alongside them.</p>
+
+        <h3>My part</h3>
+        <p>I built individual games inside the package: a <b>bubble shooter</b> and a
+        <b>match&#8209;3 puzzle</b>.</p>
+
+        <h3>What that's actually like</h3>
+        <p>Building a game inside someone else's shell is its own constraint. You inherit the
+        app's lifecycle, its UI conventions, its shared assets and its release train, and your
+        game has to feel like part of the set while still being good on its own terms. It's much
+        less free than a standalone title, and it teaches you where the seams in a shared codebase
+        really are.</p>`
+    },
+    {
+      id:"m4", kind:"arcade", tile:[19,19], w:2, h:3, ldy:-10, label:"Petairu", accent:"#4cc9f0",
+      title:"Petairu", tag:"Unity · Advisory Apps · 2023–24",
+      html:`
+        <h3>What it is</h3>
+        <p>A match&#8209;3 tile matcher with a pet collection system on top — you play the puzzle,
+        you collect and keep pets.</p>
+
+        <h3>My part</h3>
+        <p>The <b>entire client</b>, plus store distribution and the connection to the backend.</p>
+        <ul>
+          <li><b>REST</b> for the transactional side — accounts, progress, collection state</li>
+          <li><b>WebSocket</b> for anything that has to be live</li>
+          <li>Store submission and release on iOS and Android</li>
+        </ul>
+
+        <h3>Why the pets are the point</h3>
+        <p>Match&#8209;3 is a solved genre; nobody stays for the puzzle. The collection meta is the
+        actual retention mechanic — the puzzle is the thing you do in order to get the thing you
+        want, and the client has to make that loop legible without getting in the way.</p>
+        <p><a class="store" href="https://play.google.com/store/search?q=petairu&c=apps&hl=en&gl=US" target="_blank" rel="noopener">Google Play →</a></p>`
+    },
+
+    /* ================= XR & PHYSICAL INTERFACES ================= */
+    {
+      id:"xr", kind:"vrrig", tile:[7,33], w:3, h:2, label:"The rig",
+      title:"Games you play with real objects", tag:"XR · Alienide Interactive",
+      html:`
+        <p>The most unusual work I've done. Location-based experiences where the controller is a
+        physical object someone built, and my job was making the software believe it.</p>
+        <ul>
+          <li><b>Big Kahuna</b> (released as <i>Into the Blue</i>) — VR surf simulator. You stand
+          on an actual surfboard; an HTC Vive tracker turns your balance into steering.
+          <a class="store" href="https://www.youtube.com/watch?v=Ll0LFHOk6Ek" target="_blank" rel="noopener">Watch →</a></li>
+          <li><b>Mojo Pitha Chor</b> — a chase game played by pedalling a <i>real bicycle</i>,
+          through a recreation of Old Dhaka with an automated traffic system.
+          <a class="store" href="https://www.youtube.com/watch?v=QJX4x1kBplg" target="_blank" rel="noopener">Watch →</a></li>
+          <li><b>Wing Glider</b> — you lie down on a purpose-built glider rig to fly.
+          <a class="store" href="https://www.youtube.com/watch?v=a48bH1v8dr8" target="_blank" rel="noopener">Watch →</a></li>
+          <li><b>Clemon Cricket</b> — partial VR with no headset at all: a real cricket bat with a
+          controller in the handle. 25 runs in 2 overs.
+          <a class="store" href="https://www.youtube.com/watch?v=ff1KpK0lmWs" target="_blank" rel="noopener">Watch →</a></li>
+          <li><b>Fruit Ninja VR</b> — the mobile classic rebuilt for HTC Vive.
+          <a class="store" href="https://www.youtube.com/watch?v=F7jMvv9XleU" target="_blank" rel="noopener">Watch →</a></li>
+        </ul>
+
+        <h3>Why this is on my portfolio</h3>
+        <p>Custom hardware means no documentation, no Stack Overflow answer, and calibration
+        problems nobody has had before. It's the closest game development gets to engineering
+        against reality.</p>
+        <p style="color:var(--ink-dim)">Footage from the Alienide Interactive channel.</p>`
+    },
+    {
+      id:"ar", kind:"arbench", tile:[13,33], w:3, h:2, label:"AR bench",
+      title:"Augmented reality", tag:"AR · Alienide & freelance",
+      html:`
+        <ul>
+          <li><b>ISHO AR</b> — markerless AR for a furniture retailer. Pick a sofa in the main ISHO
+          app, detect a floor or wall plane, and place it at true real-world scale; drag and rotate
+          to position it. Models streamed from their server, with a 3D fallback view when AR isn't
+          available.</li>
+          <li><b>3D Color Magic</b> — marker-based AR picture books for children, six titles.
+          Point the app at a page and the animal walks off it.</li>
+          <li><b>Bproperty AR</b> — an AR floor-plan app for the property company Bproperty.
+          Hold the phone over a plan and the layout stands up off the page at scale.
+          <a class="store" href="https://www.youtube.com/watch?v=liGAHHa4tis" target="_blank" rel="noopener">Watch →</a></li>
+        </ul>
+        <h3>Also</h3>
+        <p><b>Lead XR Developer</b>, StrikeO (2024) — a research project into whether XR is a
+        feasible way to do everyday shopping. Not a product: a question, answered with a
+        prototype and a recommendation.</p>`
+    },
+    {
+      id:"brand", kind:"cartridges", tile:[19,33], w:4, h:2, label:"Brand work",
+      title:"Games made for brands", tag:"branded · Alienide Interactive",
+      html:`
+        <ul>
+          <li><b>Skitto World</b> — an experience game for Skitto (Grameenphone) that runs a whole
+          journey: earth station, spaceship, a Tron-style bike sequence through obstacles, a
+          fruit-cutting stage, then a boss fight against the Jilapi Monster with a space gun and a
+          shield.
+          <a class="store" href="https://www.youtube.com/watch?v=HdLxhdQbNUo" target="_blank" rel="noopener">Watch →</a></li>
+          <li><b>Skitto Maze</b> — arcade maze runner: collect items, dodge monster trucks, earn a
+          bonus round catching SMS bats.</li>
+          <li><b>Unilever Safety Race</b> — road-safety game in three stages. Buckle up in time,
+          drive without collisions at a safe speed, then signal your turns.</li>
+          <li><b>Mojo Khojo</b> — arcade collector for Akij Group's Mojo brand.</li>
+        </ul>
+        <h3>What this taught me</h3>
+        <p>Commitment and timelines, mostly. A campaign has a date, the date does not move, and
+        the work ships in the state it is in when the date arrives. That is a different discipline
+        from a product you can keep polishing.</p>
+        <p>The other half was watching people play. These ran as installations, so I stood next to
+        strangers while they used what I had built and saw exactly where they hesitated, what they
+        tried that I hadn't planned for, and what they never noticed at all. Most developers never
+        get that — you ship into an analytics dashboard and infer. Watching someone's hands is
+        worth a great deal of inference.</p>`
+    },
+
+    /* ================= SYSTEMS & TOOLING ================= */
+    {
+      id:"systems", kind:"rack", tile:[53,6], w:4, h:3, label:"The rack",
+      title:"Systems & tooling", tag:"platform · FlyCow Games",
+      html:`
+        <p>A dozen live titles can't each grow their own backend. Much of my work now is the
+        shared layer underneath them.</p>
+        <h3>Services</h3>
+        <ul>
+          <li>Game server admin — a TypeScript control plane for live titles</li>
+          <li>Leaderboards and match services shared across the portfolio</li>
+          <li>A web connector bridging Unity clients to platform services</li>
+        </ul>
+        <h3>Shared client tech</h3>
+        <ul>
+          <li>An in-house SDK and runtime framework every Unity title builds on</li>
+          <li>A cross-title popup kit for offers, promos and community surfaces</li>
+          <li>Haptics, code generators and monorepo tooling</li>
+        </ul>
+        <h3>Build & release</h3>
+        <p>An in-house build service driving releases across the catalogue. A build used to take
+        <b>a day</b>; it now takes <b>about an hour</b>. That hour is the difference between
+        shipping a fix when you find it and shipping it tomorrow.</p>
+        <h3>Integrity & security</h3>
+        <p>Real money on the outcome changes the threat model. I own anti-cheat and platform
+        integrity for competitive play, and the supply-chain security around how we build and
+        ship — enforced across the organisation rather than left to each project.</p>`
+    },
+
+    /* ================= CRAFT ================= */
+    {
+      id:"craft", kind:"shelf", tile:[52,20], w:5, h:2, label:"Toolbox",
+      title:"Craft & tools", tag:"the shelf",
+      html:`
+        <h3>Engines</h3>
+        <p><span class="pill">Unity</span><span class="pill">Unreal</span><span class="pill">Godot</span></p>
+        <h3>Languages</h3>
+        <p><span class="pill">C#</span><span class="pill">TypeScript</span><span class="pill">Swift</span>
+        <span class="pill">Python</span><span class="pill">Rust</span>
+        <span class="pill">Objective-C++</span><span class="pill">JavaScript</span>
+        <span class="pill">Ruby</span><span class="pill">Go</span></p>
+        <h3>Platforms & services</h3>
+        <p><span class="pill">iOS</span><span class="pill">Android</span><span class="pill">Skillz</span>
+        <span class="pill">Firebase</span>
+        <span class="pill">Nx monorepo</span><span class="pill">CI/CD</span>
+        <span class="pill">HTC Vive</span><span class="pill">ARCore / ARKit</span>
+        <span class="pill">Kinect</span></p>
+        <h3>Where I'm strongest</h3>
+        <p>Game architecture &amp; shared SDK design</p><div class="meter"><i style="width:95%"></i></div>
+        <p>Real-time multiplayer &amp; live-service backend</p><div class="meter"><i style="width:85%"></i></div>
+        <p>Build, release &amp; developer tooling</p><div class="meter"><i style="width:85%"></i></div>
+        <p>XR &amp; custom hardware integration</p><div class="meter"><i style="width:80%"></i></div>
+        <p>Platform integrity &amp; security</p><div class="meter"><i style="width:75%"></i></div>
+`
+    },
+
+    /* ================= CAREER ================= */
+    {
+      id:"exp", kind:"board", tile:[34,32], w:5, h:2, label:"Whiteboard",
+      title:"Career", tag:"the whiteboard",
+      html:`
+        <div class="row"><span class="yr">Jun 2025 — now</span><span><b>Technical Director</b>, FlyCow Games · remote</span></div>
+        <div class="row"><span class="yr">Oct 2024 — May 2025</span><span><b>Tech Team Lead</b>, FlyCow Games · remote</span></div>
+        <div class="row"><span class="yr">Jan 2024 — Jan 2025</span><span><b>Lead Game Developer</b>, FlyCow Games · remote</span></div>
+        <div class="row"><span class="yr">Oct — Nov 2024</span><span><b>Lead XR Developer</b>, StrikeO · part-time</span></div>
+        <div class="row"><span class="yr">Jan 2023 — Mar 2024</span><span><b>Lead Game Developer</b>, Advisory Apps · Malaysia, remote</span></div>
+        <p style="color:var(--ink-dim); margin:2px 0 8px 0">Freelancing as a game developer and system architect for other clients across the same period.</p>
+        <div class="row"><span class="yr">Feb 2020 — Aug 2022</span><span><b>Senior Software Engineer</b>, Moonfrog Labs · Dhaka</span></div>
+        <div class="row"><span class="yr">Feb — Nov 2019</span><span><b>Senior Gameplay Programmer</b>, Alienide Interactive</span></div>
+        <div class="row"><span class="yr">Dec 2017 — Feb 2019</span><span><b>Gameplay Programmer</b>, Alienide Interactive</span></div>
+        <h3>Education</h3>
+        <div class="row"><span class="yr">2013 — 2017</span><span><b>B.Sc. in Computer Science</b>, Islamic University of Technology · Dhaka</span></div>`
+    },
+    {
+      id:"side", kind:"trophy", tile:[40,34], w:3, h:2, label:"Side projects",
+      title:"Side projects & experiments", tag:"the trophy case",
+      html:`
+        <p>Personal repos, separate from the shipped work.</p>
+        <ul>
+          <li><b>Catch the Red</b> — a desktop game played with a Microsoft Kinect v2.</li>
+          <li><b>Ultimate Tower Defence</b>, <b>Space Shooter</b>, <b>Space Clash</b> — Unity/C#.</li>
+          <li><b>Playable ads</b> and one-input arcade experiments in HTML/JS.</li>
+          <li>Utilities: a debt calculator, a flight-ticket app, a Notion template maker.</li>
+        </ul>
+        <p><a href="https://github.com/iqbalopu" target="_blank" rel="noopener">github.com/iqbalopu →</a></p>`
+    },
+
+    /* ================= CONTACT ================= */
+    {
+      id:"contact", kind:"terminal", tile:[54,33], w:2, h:2, label:"Terminal",
+      title:"Get in touch", tag:"the terminal",
+      html:`
+        <p>Happy to talk about games, live-service architecture, XR, or work.</p>
+
+        <h3>Send me a message</h3>
+        <form class="cform" onsubmit="sendMail(event)">
+          <input id="cSubject" type="text" placeholder="Subject" autocomplete="off">
+          <textarea id="cBody" rows="4" placeholder="Your message…"></textarea>
+          <div class="cform-row">
+            <button type="submit" class="cbtn">✉ Open in my email app</button>
+            <button type="button" class="cbtn ghost" onclick="copyEmail(this)">Copy address</button>
+          </div>
+          <p class="chint">This opens your own mail app with the message ready to send — nothing
+          is submitted to a server, and no one else sees it.</p>
+        </form>
+
+        <h3>Elsewhere</h3>
+        <ul>
+          <li>Email — <a href="mailto:hiqbal285@gmail.com">hiqbal285@gmail.com</a></li>
+          <li>GitHub — <a href="https://github.com/iqbalopu" target="_blank" rel="noopener">github.com/iqbalopu</a></li>
+          <li>LinkedIn — <a href="https://www.linkedin.com/in/iqbalhossainopu" target="_blank" rel="noopener">in/iqbalhossainopu</a></li>
+        </ul>
+        <p style="color:var(--ink-dim)">Based in Dhaka, Bangladesh · working remotely.</p>`
+    },
+
+    /* ================= secret ================= */
+    {
+      id:"cow", kind:"plant", tile:[46,21], w:1, h:1, label:"???", secret:true,
+      title:"You found the cow", tag:"secret",
+      html:`<p style="font-size:34px;margin:0 0 10px">🐄</p>
+            <p>It flies. That's the whole joke.</p>`
+    }
+  ],
+
+};
+
+
+/* ==================================================================
+   2.  WORLD
+   ================================================================== */
+const TILE = 16, MAP_W = 64, MAP_H = 44;
+const W = MAP_W*TILE, H = MAP_H*TILE;
+
+/* terrain codes */
+const GRASS=0, PATH=1, WATER=2, FLOOR=3, WALL=4, TREE=5, SAND=6;
+
+const cvs = document.getElementById('game');
+let ctx = cvs.getContext('2d');
+const mm  = document.getElementById('minimap');
+const mmx = mm.getContext('2d');
+
+/* deterministic per-tile noise */
+function hash(x,y){ let n = x*374761393 + y*668265263; n = (n^(n>>13))*1274126177; return ((n^(n>>16))>>>0)/4294967296; }
+
+/* ---------- buildings ---------- */
+const BUILDINGS = [
+  {id:'about',  label:'ABOUT',                    x:3,  y:3,  w:12, h:9, door:8,  roof:'#8c4b3a'},
+  {id:'games',  label:'COMPETITIVE GAMES',        x:19, y:3,  w:26, h:9, door:31, roof:'#7a3f5e'},
+  {id:'sys',    label:'SYSTEMS & TOOLING',        x:49, y:3,  w:12, h:9, door:54, roof:'#3f5f7a'},
+  {id:'multi',  label:'MULTIPLAYER & LIVE SERVICE',x:3, y:16, w:22, h:9, door:13, roof:'#8a6b34'},
+  {id:'craft',  label:'CRAFT',                    x:49, y:16, w:12, h:9, door:54, roof:'#4a7a52'},
+  {id:'xr',     label:'XR & PHYSICAL INTERFACES', x:3,  y:29, w:24, h:9, door:14, roof:'#5b4a86'},
+  {id:'career', label:'CAREER',                   x:31, y:29, w:15, h:9, door:37, roof:'#7a5a3a'},
+  {id:'contact',label:'CONTACT',                  x:50, y:29, w:11, h:9, door:54, roof:'#3f6f6a'}
+];
+BUILDINGS.forEach(b=>{ b.a=1; b.at=1; });
+
+/* pond */
+const POND = {cx:36.5, cy:20.5, rx:7.2, ry:5.0};
+function inPond(tx,ty){
+  const dx=(tx-POND.cx)/POND.rx, dy=(ty-POND.cy)/POND.ry;
+  return dx*dx+dy*dy <= 1;
+}
+function pondEdge(tx,ty){
+  const dx=(tx-POND.cx)/(POND.rx+1.1), dy=(ty-POND.cy)/(POND.ry+1.1);
+  return dx*dx+dy*dy <= 1;
+}
+
+/* ---------- terrain ---------- */
+const map = [];
+for(let y=0;y<MAP_H;y++){ map[y]=[]; for(let x=0;x<MAP_W;x++) map[y][x]=GRASS; }
+
+/* pond + sandy shore */
+for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+  if(inPond(x,y)) map[y][x]=WATER;
+}
+
+/* paths: two avenues + a spine, plus stubs to every door */
+function lay(x,y,c){ if(map[y]&&map[y][x]!==undefined && map[y][x]===GRASS) map[y][x]=c; }
+for(let x=3;x<=60;x++){ lay(x,13,PATH); lay(x,14,PATH); lay(x,26,PATH); lay(x,27,PATH); }
+for(let y=13;y<=27;y++){ lay(28,y,PATH); lay(29,y,PATH); }
+BUILDINGS.forEach(b=>{
+  const dy=b.y+b.h;                       // tile just below the door
+  const target = dy<13 ? 13 : (dy<26 ? 26 : 39);
+  if(dy<26 || b.y>27){
+    const from=Math.min(dy,target), to=Math.max(dy,target);
+    for(let y=from;y<=to;y++){ lay(b.door,y,PATH); lay(b.door+1,y,PATH); }
+  }
+});
+for(let x=3;x<=60;x++){ lay(x,39,PATH); lay(x,40,PATH); }
+for(let y=27;y<=40;y++){ lay(28,y,PATH); lay(29,y,PATH); }
+
+/* border trees + scattered woods */
+for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++){
+  if(x<1||y<1||x>MAP_W-2||y>MAP_H-2){ map[y][x]=TREE; continue; }
+  if(map[y][x]===GRASS && hash(x,y)>0.955) map[y][x]=TREE;
+}
+
+/* buildings punch into the terrain */
+BUILDINGS.forEach(b=>{
+  for(let y=b.y; y<b.y+b.h; y++) for(let x=b.x; x<b.x+b.w; x++){
+    const edge = (x===b.x||x===b.x+b.w-1||y===b.y||y===b.y+b.h-1);
+    map[y][x] = edge ? WALL : FLOOR;
+  }
+  map[b.y+b.h-1][b.door] = FLOOR;              // the doorway
+  for(let y=b.y+b.h; y<b.y+b.h+2 && y<MAP_H-1; y++){ map[y][b.door]=PATH; map[y][b.door+1]=PATH; }
+});
+
+function insideBuildingAt(tx,ty){
+  for(const b of BUILDINGS)
+    if(tx>=b.x && tx<b.x+b.w && ty>=b.y && ty<=b.y+b.h-2) return b;
+  return null;
+}
+
+/* ==================================================================
+   WATER — software shader over the pond.
+   Layers, after godotshaders.com/shader/2d-water-for-topdown-games:
+     fbm wave field · expanding ripple emitters · normals -> specular
+     · depth-blended colour · animated shoreline foam
+   ================================================================== */
+const WPAD = 2;
+const WX0 = Math.floor(POND.cx-POND.rx-WPAD), WY0 = Math.floor(POND.cy-POND.ry-WPAD);
+const WX1 = Math.ceil (POND.cx+POND.rx+WPAD), WY1 = Math.ceil (POND.cy+POND.ry+WPAD);
+const WSC = 2;                                   // world px per water pixel
+const WPW = (WX1-WX0)*TILE/WSC, WPH = (WY1-WY0)*TILE/WSC;
+
+const wcv = document.createElement('canvas');
+wcv.width = WPW; wcv.height = WPH;
+const wctx = wcv.getContext('2d', {willReadFrequently:true});
+const wimg = wctx.createImageData(WPW, WPH);
+const wbuf = new Uint32Array(wimg.data.buffer);
+const wDepth = new Float32Array(WPW*WPH);       // 0 at the shoreline, 1 mid-pond
+const wRad   = new Float32Array(WPW*WPH);       // normalised radius, for the shore band
+const wH     = new Float32Array(WPW*WPH);       // height field
+
+function ihash(x,y){
+  let n = (x|0)*374761393 + (y|0)*668265263;
+  n = (n ^ (n>>13)) * 1274126177;
+  return ((n ^ (n>>16))>>>0) / 4294967296;
+}
+function vnoise(x,y){
+  const xi=Math.floor(x), yi=Math.floor(y), xf=x-xi, yf=y-yi;
+  const u=xf*xf*(3-2*xf), v=yf*yf*(3-2*yf);
+  const a=ihash(xi,yi), b=ihash(xi+1,yi), c=ihash(xi,yi+1), d=ihash(xi+1,yi+1);
+  return (a+(b-a)*u) + ((c+(d-c)*u) - (a+(b-a)*u))*v;
+}
+function fbm(x,y){
+  /* rotated octaves, as in the reference shader */
+  let f = vnoise(x,y)*0.55;
+  const rx =  x*0.80 + y*0.60, ry = -x*0.60 + y*0.80;
+  f += vnoise(rx*2.1, ry*2.1)*0.30;
+  f += vnoise(x*4.3 - 11.7, y*4.3 + 5.1)*0.15;
+  return f;
+}
+
+/* depth mask: soft distance to the pond boundary, with a wobbly edge */
+(function bakeDepth(){
+  for(let py=0; py<WPH; py++) for(let px2=0; px2<WPW; px2++){
+    const wx = WX0*TILE + px2*WSC, wy = WY0*TILE + py*WSC;
+    const tx = wx/TILE, ty = wy/TILE;
+    const wob = (vnoise(tx*1.6, ty*1.6)-0.5)*0.10;
+    const dx=(tx-POND.cx)/POND.rx, dy=(ty-POND.cy)/POND.ry;
+    const r = Math.sqrt(dx*dx+dy*dy) + wob;
+    wRad[py*WPW+px2]   = r;
+    wDepth[py*WPW+px2] = r>=1 ? -1 : Math.min(1, (1-r)/0.34);
+  }
+})();
+
+/* ripple emitters */
+const emitters = [];
+function emit(wx, wy, strength){
+  if(emitters.length>8) emitters.shift();
+  emitters.push({x:(wx-WX0*TILE)/WSC, y:(wy-WY0*TILE)/WSC, t:0, s:strength||1});
+}
+let emitTick=0;
+
+function updateWater(){
+  emitTick++;
+  if(emitTick%46===0){
+    const a=Math.random()*6.283, r=Math.sqrt(Math.random());
+    emit((POND.cx + Math.cos(a)*POND.rx*0.8*r)*TILE,
+         (POND.cy + Math.sin(a)*POND.ry*0.8*r)*TILE, 0.75);
+  }
+  if(emitTick%26===0) emit(mother.x, mother.y+2, 1.15);
+  for(let i=emitters.length-1;i>=0;i--){
+    emitters[i].t += 1;
+    if(emitters[i].t>210) emitters.splice(i,1);
+  }
+}
+
+const RIPPLE_STRENGTH = 0.9, HIGHLIGHT_POW = 16;
+function renderWater(){
+  const t = T*0.016;
+  const active=[], nAct0=emitters.length;
+  for(let k=0;k<nAct0;k++){
+    const e=emitters[k];
+    e.rad = e.t*0.31;
+    const f = 1 - e.t/210; e.fade = f*f;
+    e.rMax = e.rad + 6;
+    if(e.fade>0.01) active.push(e);
+  }
+  const nAct=active.length;
+
+  /* pass 1 — height field */
+  for(let py=0; py<WPH; py++){
+    for(let px2=0; px2<WPW; px2++){
+      const idx=py*WPW+px2;
+      if(wDepth[idx]<0){ wH[idx]=0; continue; }
+      const x=px2, y=py;
+      /* drifting fbm swell */
+      let h = fbm(x*0.090 + t*0.35, y*0.090 - t*0.22)*0.92;
+      /* two crossing sine waves */
+      h += Math.sin(x*0.22 + y*0.12 + t*1.9)*0.22;
+      h += Math.sin(x*0.12 - y*0.26 - t*1.4)*0.18;
+      /* fine chop, so the swell doesn't read as blotches */
+      h += (vnoise(x*0.52 + t*2.1, y*0.52 - t*1.5)-0.5)*0.34;
+      /* expanding ripples */
+      for(let k=0;k<nAct;k++){
+        const e=active[k];
+        const dy=(y-e.y)*1.9;
+        if(dy>e.rMax || dy<-e.rMax) continue;
+        const dx=x-e.x;
+        if(dx>e.rMax || dx<-e.rMax) continue;
+        const d=Math.sqrt(dx*dx+dy*dy);
+        const age=e.t, radius=age*0.62;
+        const band=Math.abs(d-radius);
+        if(band<6){
+          h += Math.sin((d-radius)*1.10) * (1-band/6) * e.fade * RIPPLE_STRENGTH * e.s;
+        }
+      }
+      wH[idx]=h;
+    }
+  }
+
+  /* pass 2 — normals, specular, colour */
+  for(let py=0; py<WPH; py++){
+    for(let px2=0; px2<WPW; px2++){
+      const idx=py*WPW+px2;
+      const dep=wDepth[idx];
+      if(dep<0){
+        const rad=wRad[idx];
+        if(rad<1.14){                                   // sandy shore, smooth-edged
+          const n=vnoise(px2*0.30, py*0.30);
+          const near = rad < 1.04+n*0.04;
+          wbuf[idx] = (255<<24) | ((near?126:143)<<16) | ((near?214:224)<<8) | (near?238:243);
+        } else wbuf[idx]=0;
+        continue;
+      }
+
+      const l = px2>0 ? wH[idx-1] : wH[idx];
+      const r = px2<WPW-1 ? wH[idx+1] : wH[idx];
+      const u = py>0 ? wH[idx-WPW] : wH[idx];
+      const dn= py<WPH-1 ? wH[idx+WPW] : wH[idx];
+      let nx=(l-r)*1.5, ny=(u-dn)*1.5;
+      const nl=Math.sqrt(nx*nx+ny*ny+1); nx/=nl; ny/=nl;
+      const nz=1/nl;
+
+      /* directional light from the upper left */
+      let spec = nx*(-0.62) + ny*(-0.62) + nz*0.48;
+      spec = spec>0 ? Math.pow(spec, HIGHLIGHT_POW) : 0;
+
+      /* cartoon cel water: a handful of flat bands, hard edges */
+      const hv = wH[idx];
+      const v  = dep - hv*0.16;                 // waves push the band edges around
+      let R,G,B;
+      if(v < 0.16){ R=138; G=224; B=243; }      // shallow
+      else if(v < 0.42){ R= 86; G=200; B=232; } // mid
+      else { R= 52; G=166; B=214; }             // deep
+      /* crest lines and specular read as flat white flecks */
+      if(hv > 0.66 || spec > 0.42){ R=246; G=253; B=255; }
+      /* shoreline foam */
+      if(dep < 0.17){
+        const f = 1 - dep/0.17;
+        const churn = fbm(px2*0.36 + t*1.1, py*0.36 - t*0.8);
+        if(f*f*(0.5+churn*0.95) > 0.34){ R=255; G=255; B=255; }
+      }
+
+      wbuf[idx] = (255<<24) | (B<<16) | (G<<8) | R;
+    }
+  }
+  wctx.putImageData(wimg,0,0);
+}
+
+/* ---------- trees, gathered once ---------- */
+const TREES = [];
+for(let y=0;y<MAP_H;y++) for(let x=0;x<MAP_W;x++)
+  if(map[y][x]===TREE) TREES.push({x:x*TILE, y:y*TILE, v:hash(x,y)>0.5?1:0, fruit:hash(x,y)>0.72, ph:x*0.7});
+
+/* ---------- tall grass & cattails ringing the pond ---------- */
+const REEDS = [];
+(function seedReeds(){
+  let seed = 1337;
+  const rnd = ()=>{ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed/0x7fffffff; };
+  for(let i=0;i<430;i++){
+    const a = rnd()*Math.PI*2;
+    const k = 1.14 + Math.pow(rnd(), 0.8)*0.44;          // just outside the shore, thinning outward
+    const tx = POND.cx + Math.cos(a)*POND.rx*k;
+    const ty = POND.cy + Math.sin(a)*POND.ry*k;
+    const ix = Math.floor(tx), iy = Math.floor(ty);
+    if(ix<1||iy<1||ix>=MAP_W-1||iy>=MAP_H-1) continue;
+    if(map[iy][ix]!==GRASS) continue;
+    if(objSolidHas(ix,iy)) continue;
+    const dens = 1 - (k-1.14)/0.44;                        // thicker near the water
+    if(rnd() > 0.26 + dens*0.48) continue;
+    REEDS.push({
+      x:  tx*TILE + (rnd()-0.5)*10,
+      y:  ty*TILE + (rnd()-0.5)*10,
+      hb: Math.min(2, (rnd()*2.2 + dens*0.9)|0),           // height bucket
+      sc: 1.05 + rnd()*0.5,                               // per-clump scale
+      ph: rnd()*6.283,
+      cat: rnd() < 0.15,
+      tint: rnd()
+    });
+  }
+})();
+function objSolidHas(x,y){ return false; }   /* reeds are decorative — you can walk through them */
+
+/* ---------- props (outdoor decoration) ---------- */
+const PROPS = [];
+(function seedProps(){
+  const spots = [
+    ['bench',31,22],['bench',42,22],['lamp',26,15],['lamp',31,15],['lamp',26,25],
+    ['crate',46,15],['crate',47,35],['barrel',17,15],['barrel',47,26],
+    ['flowers',30,17],['flowers',44,24],['flowers',15,28],['flowers',48,41],
+    ['flowers',6,41],['flowers',20,41],['rock',44,17],['rock',26,35],['rock',10,27],
+    ['sign',28,12],['bush',33,12],['bush',40,12],['bush',12,28],['bush',46,28],
+    ['haybale',20,28],['haybale',22,28],['haybale',21,26]
+  ];
+  for(const [k,x,y] of spots){
+    if(map[y] && map[y][x]!==WALL && map[y][x]!==WATER && map[y][x]!==FLOOR)
+      PROPS.push({k,x:x*TILE,y:y*TILE,tx:x,ty:y});
+  }
+})();
+/* lamps and benches block movement */
+const propSolid = new Set();
+PROPS.forEach(p=>{ if(p.k==='bench'||p.k==='crate'||p.k==='barrel'||p.k==='rock'||p.k==='haybale') propSolid.add(p.tx+','+p.ty); });
+
+/* ---------- interactables ---------- */
+const objs = CONTENT.objects.map(o=>({
+  ...o, x:o.tile[0]*TILE, y:o.tile[1]*TILE, pw:o.w*TILE, ph:o.h*TILE, seen:false,
+  home: insideBuildingAt(o.tile[0], o.tile[1])
+}));
+const objSolid = new Set();
+objs.forEach(o=>{
+  if(o.kind==='plant') return;
+  for(let y=o.tile[1]; y<o.tile[1]+o.h; y++)
+    for(let x=o.tile[0]; x<o.tile[0]+o.w; x++) objSolid.add(x+','+y);
+});
+
+/* sanity check: every panel except the secret should live inside a building */
+(function checkHomes(){
+  const stray = objs.filter(o=>!o.secret && !o.home).map(o=>o.id+' @'+o.tile.join(','));
+  if(stray.length) console.warn('Objects outside any building:', stray.join(' | '));
+})();
+
+/* ---------- player ---------- */
+const P = { x: 28.5*TILE, y: 30*TILE, w:10, h:12, dir:0, moving:false, anim:0, speed:1.5 };
+
+/* ---------- input ---------- */
+const keys = {};
+let touchVec = {x:0,y:0};
+addEventListener('keydown', e=>{
+  const t=e.target, tag=t&&t.tagName;
+  if(tag==='INPUT'||tag==='TEXTAREA'){ if(e.key==='Escape') t.blur(); return; }
+  if(['ArrowUp','ArrowDown','ArrowLeft','ArrowRight',' '].includes(e.key)) e.preventDefault();
+  keys[e.key.toLowerCase()] = true;
+  if(e.key==='Escape') closeModal();
+  if(e.key.toLowerCase()==='e' || e.key===' ' || e.key==='Enter') tryInteract();
+  if(e.key.toLowerCase()==='m') toggleClassic();
+});
+addEventListener('keyup', e=>{ keys[e.key.toLowerCase()] = false; });
+addEventListener('blur', ()=>{ for(const k in keys) keys[k]=false; });
+
+/* ---------- camera ---------- */
+let ZOOM = 2, camX = 0, camY = 0, camInit = false;
+function resize(){
+  const dpr = Math.min(devicePixelRatio||1, 1.5);   // chunky art: full retina buys little, costs a lot
+  cvs.width = innerWidth*dpr; cvs.height = innerHeight*dpr;
+  cvs.style.width = innerWidth+'px'; cvs.style.height = innerHeight+'px';
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.imageSmoothingEnabled = true;
+  ZOOM = Math.max(2, Math.min(3, Math.floor(Math.min(innerWidth/W, innerHeight/H))));
+  document.getElementById('touch').style.display =
+    matchMedia('(pointer:coarse)').matches ? 'block' : 'none';
+}
+addEventListener('resize', resize);
+
+/* ---------- collision ---------- */
+function solidTile(t){ return t===WALL || t===WATER || t===TREE; }
+function solidAt(px,py){
+  const tx = Math.floor(px/TILE), ty = Math.floor(py/TILE);
+  if(tx<0||ty<0||tx>=MAP_W||ty>=MAP_H) return true;
+  if(solidTile(map[ty][tx])) return true;
+  const key = tx+','+ty;
+  return objSolid.has(key) || propSolid.has(key);
+}
+function canMove(nx,ny){
+  const hw=P.w/2, hh=P.h/2-2;
+  return !(solidAt(nx-hw,ny-hh)||solidAt(nx+hw-1,ny-hh)||solidAt(nx-hw,ny+hh)||solidAt(nx+hw-1,ny+hh));
+}
+
+/* ---------- critters ---------- */
+function walkableForCow(tx,ty){
+  if(tx<1||ty<1||tx>=MAP_W-1||ty>=MAP_H-1) return false;
+  const t = map[ty][tx];
+  if(t!==GRASS && t!==PATH && t!==SAND) return false;
+  return !objSolid.has(tx+','+ty) && !propSolid.has(tx+','+ty);
+}
+const cows = [];
+for(let i=0;i<5;i++){
+  let tx,ty,tries=0;
+  do{ tx=2+Math.floor(Math.random()*(MAP_W-4)); ty=2+Math.floor(Math.random()*(MAP_H-4)); tries++; }
+  while(!walkableForCow(tx,ty) && tries<400);
+  cows.push({x:tx*TILE+8, y:ty*TILE+8, vx:0, vy:0, t:Math.random()*200, face:1, graze:0});
+}
+const duckPath = [];
+const mother = {x:POND.cx*TILE, y:POND.cy*TILE, a:Math.random()*6.28, t:0};
+const ducklings = [0,1,2,3,4].map(i=>({i, x:mother.x, y:mother.y}));
+
+function updateCritters(){
+  /* cows: wander, pause to graze */
+  for(const c of cows){
+    c.t--;
+    if(c.t<=0){
+      c.t = 90 + Math.random()*220;
+      if(Math.random()<0.45){ c.vx=0; c.vy=0; c.graze=60+Math.random()*120; }
+      else{
+        const a = Math.random()*Math.PI*2;
+        c.vx = Math.cos(a)*0.22; c.vy = Math.sin(a)*0.22;
+        if(Math.abs(c.vx)>0.02) c.face = c.vx>0?1:-1;
+      }
+    }
+    if(c.graze>0){ c.graze--; continue; }
+    const nx=c.x+c.vx, ny=c.y+c.vy;
+    if(walkableForCow(Math.floor(nx/TILE), Math.floor(c.y/TILE))) c.x=nx; else { c.vx*=-1; c.face=c.vx>0?1:-1; }
+    if(walkableForCow(Math.floor(c.x/TILE), Math.floor(ny/TILE))) c.y=ny; else c.vy*=-1;
+  }
+  /* mother duck paddles inside the pond, ducklings trail behind */
+  mother.t += 0.02;
+  mother.a += (Math.sin(mother.t*1.7)*0.06);
+  let nx = mother.x + Math.cos(mother.a)*0.42;
+  let ny = mother.y + Math.sin(mother.a)*0.42;
+  if(!inPond(nx/TILE, ny/TILE)){
+    const toC = Math.atan2(POND.cy*TILE-mother.y, POND.cx*TILE-mother.x);
+    mother.a = toC + (Math.random()-0.5)*0.6;
+    nx = mother.x + Math.cos(mother.a)*0.42; ny = mother.y + Math.sin(mother.a)*0.42;
+  }
+  mother.x=nx; mother.y=ny;
+  duckPath.unshift({x:mother.x, y:mother.y});
+  if(duckPath.length>140) duckPath.pop();
+  ducklings.forEach((d,i)=>{
+    const p = duckPath[Math.min(duckPath.length-1, 18+i*16)];
+    if(p){ d.x=p.x; d.y=p.y; }
+  });
+}
+
+/* fireflies */
+const flies = [];
+for(let i=0;i<46;i++) flies.push({
+  x:Math.random()*W, y:Math.random()*H, p:Math.random()*6.28, s:0.3+Math.random()*0.7
+});
+
+/* the flying cow */
+const flyCow = {active:false, x:0, y:0, t:0, next:420};
+
+/* ---------- update ---------- */
+let insideB = null, lastInside = null;
+function update(){
+  const blocked = document.getElementById('modal').classList.contains('on') ||
+                  document.getElementById('classic').classList.contains('on') ||
+                  document.getElementById('intro').style.display !== 'none';
+
+  updateCritters();
+  updateWater();
+  for(const f of flies){ f.p += 0.02*f.s; f.x += Math.cos(f.p)*0.22; f.y += Math.sin(f.p*1.3)*0.16; }
+  if(flyCow.active){
+    flyCow.x += 1.5; flyCow.t++;
+    if(flyCow.x > innerWidth+80) flyCow.active=false;
+  } else if(--flyCow.next<=0){
+    flyCow.active=true; flyCow.x=-90; flyCow.y=50+Math.random()*90; flyCow.t=0; flyCow.next=1400+Math.random()*1600;
+  }
+
+  if(!blocked){
+    let dx=0, dy=0;
+    if(keys['a']||keys['arrowleft'])  dx-=1;
+    if(keys['d']||keys['arrowright']) dx+=1;
+    if(keys['w']||keys['arrowup'])    dy-=1;
+    if(keys['s']||keys['arrowdown'])  dy+=1;
+    dx += touchVec.x; dy += touchVec.y;
+    const len = Math.hypot(dx,dy);
+    if(len>1){ dx/=len; dy/=len; }
+    P.moving = len>0.08;
+    if(P.moving){
+      if(Math.abs(dx)>Math.abs(dy)) P.dir = dx>0?1:3; else P.dir = dy>0?2:0;
+      const nx=P.x+dx*P.speed*2, ny=P.y+dy*P.speed*2;
+      if(canMove(nx,P.y)) P.x=nx;
+      if(canMove(P.x,ny)) P.y=ny;
+      P.anim += 0.2;
+    } else P.anim = 0;
+  } else P.moving = false;
+
+  /* which building am I in? */
+  insideB = insideBuildingAt(Math.floor(P.x/TILE), Math.floor(P.y/TILE));
+  if(insideB !== lastInside){
+    if(insideB){
+      toast(insideB.label); blip(560);
+      if(!insideB._entered) track('enter:'+insideB.id);
+      insideB._entered=true;
+    }
+    lastInside = insideB;
+  }
+  for(const b of BUILDINGS){
+    b.at = (b===insideB) ? 0.10 : 1;
+    b.a += (b.at - b.a) * 0.16;
+  }
+
+  near = findNear();
+  const pr = document.getElementById('prompt');
+  if(near && !blocked){
+    pr.style.display='block';
+    pr.innerHTML = (matchMedia('(pointer:coarse)').matches ? 'Tap <b>LOOK</b>' : 'Press <b>E</b>')
+                 + ' — ' + near.label;
+  } else pr.style.display='none';
+
+  /* camera with a little lag */
+  const vw = innerWidth/ZOOM, vh = innerHeight/ZOOM;
+  let tx = Math.max(0, Math.min(W-vw, P.x - vw/2));
+  let ty = Math.max(0, Math.min(H-vh, P.y - vh/2));
+  if(W < vw) tx = (W-vw)/2;
+  if(H < vh) ty = (H-vh)/2;
+  if(!camInit){ camX=tx; camY=ty; camInit=true; }
+  camX += (tx-camX)*0.12; camY += (ty-camY)*0.12;
+}
+
+let near = null;
+function findNear(){
+  let best=null, bd=1e9;
+  for(const o of objs){
+    if(o.home && o.home!==insideB) continue;          // can't read what's under a roof
+    const cx=o.x+o.pw/2, cy=o.y+o.ph/2;
+    const d=Math.hypot(P.x-cx, P.y-cy);
+    const reach = Math.max(o.pw,o.ph)/2 + 22;
+    if(d<reach && d<bd){ bd=d; best=o; }
+  }
+  return best;
+}
+
+/* ==================================================================
+   3.  DRAWING — chunky cartoon: flat saturated fills, dark outlines,
+       soft drop shadows, a little bounce in everything that moves.
+   ================================================================== */
+const C = {
+  ink:'#33241c', inkSoft:'rgba(51,36,28,.55)',
+  grass:'#7cc555', grass2:'#6eb949', grassHi:'#8fd465', grassDk:'#54a03c',
+  dirt:'#e3c489', dirt2:'#d8b678', dirtDk:'#bd9a5d',
+  sand:'#f0dda6', sandDk:'#d8c07f',
+  wall:'#f6e7c8', wallDk:'#e0cca4', timber:'#9a6440', timberDk:'#7a4c2f',
+  glass:'#bfeaf7', glassDk:'#8fd3ea',
+  white:'#ffffff', cream:'#fff6e2',
+  cow:'#fdfdfd', cowDk:'#e6e6ee', spot:'#3b3038', snout:'#f2a9b8',
+  duck:'#ffd23f', duckDk:'#f0b429', bill:'#f2803c',
+  skin:'#e9b183', skinDk:'#d59a69', hair:'#1b1a20', hairHi:'#3a3844',
+  shirt:'#3f4d49', shirtDk:'#33403c', collar:'#f4f2e8', jeans:'#39404f',
+  lens:'#cfe4f2', frame:'#2b2b33'
+};
+BUILDINGS[0].roof='#e8563f'; BUILDINGS[1].roof='#b45cd6'; BUILDINGS[2].roof='#4aa3e0';
+BUILDINGS[3].roof='#f2a93b'; BUILDINGS[4].roof='#52c47a'; BUILDINGS[5].roof='#7b6cf0';
+BUILDINGS[6].roof='#e07b3c'; BUILDINGS[7].roof='#35bfb0';
+
+let T = 0;
+function px(x,y,w,h,c){ ctx.fillStyle=c; ctx.fillRect(x,y,w,h); }
+function shade(hex, amt){
+  const n=parseInt(hex.slice(1),16); let r=(n>>16)&255,g=(n>>8)&255,b=n&255;
+  r=Math.max(0,Math.min(255,r+255*amt))|0; g=Math.max(0,Math.min(255,g+255*amt))|0; b=Math.max(0,Math.min(255,b+255*amt))|0;
+  return `rgb(${r},${g},${b})`;
+}
+function rr(x,y,w,h,r){
+  r=Math.min(r, w/2, h/2);
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.lineTo(x+w-r,y); ctx.quadraticCurveTo(x+w,y,x+w,y+r);
+  ctx.lineTo(x+w,y+h-r); ctx.quadraticCurveTo(x+w,y+h,x+w-r,y+h);
+  ctx.lineTo(x+r,y+h); ctx.quadraticCurveTo(x,y+h,x,y+h-r);
+  ctx.lineTo(x,y+r); ctx.quadraticCurveTo(x,y,x+r,y);
+  ctx.closePath();
+}
+function ell(cx,cy,rx,ry){
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, Math.max(0.01, rx||0), Math.max(0.01, ry||0), 0, 0, 6.2832);
+}
+function ink(w){ ctx.strokeStyle=C.ink; ctx.lineWidth=w||1.3; ctx.lineJoin='round'; ctx.lineCap='round'; ctx.stroke(); }
+function fill(c){ ctx.fillStyle=c; ctx.fill(); }
+function blob(cx,cy,rx,ry,c,line){
+  if(rx<=0||ry<=0) return;
+  ell(cx,cy,rx,ry); fill(c); if(line!==false) ink(line||1.3);
+}
+function drop(cx,cy,rx,ry,a){
+  ctx.fillStyle=`rgba(46,34,24,${a||0.18})`;
+  ell(cx,cy,rx,ry); ctx.fill();
+}
+function label(text,x,y,c,size){
+  ctx.font=`bold ${size||7}px system-ui, -apple-system, "Segoe UI", sans-serif`;
+  ctx.textAlign='center'; ctx.lineJoin='round';
+  ctx.strokeStyle='rgba(255,252,240,.92)'; ctx.lineWidth=2.6; ctx.strokeText(text,x,y);
+  ctx.fillStyle=c||C.ink; ctx.fillText(text,x,y);
+  ctx.textAlign='left';
+}
+
+/* ---------------- terrain ---------------- */
+function drawTerrain(x0,y0,x1,y1){
+  /* one flat sweep of grass, then character on top */
+  px(x0*TILE, y0*TILE, (x1-x0)*TILE, (y1-y0)*TILE, C.grass);
+  for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){
+    const t=map[y][x], X=x*TILE, Y=y*TILE, r=hash(x,y);
+    if(t===GRASS || t===TREE){
+      if(r>0.80){ blob(X+8+(r-0.8)*20, Y+8, 9, 7, C.grass2, false); }
+      else if(r<0.12){ blob(X+7, Y+9, 7, 5, C.grassHi, false); }
+    }
+  }
+  /* dirt paths */
+  for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){
+    if(map[y][x]!==PATH) continue;
+    const X=x*TILE, Y=y*TILE, r=hash(x,y);
+    px(X,Y,TILE,TILE,C.dirt);
+    if(y>0        && map[y-1][x]!==PATH) px(X,Y,TILE,2,C.dirtDk);
+    if(y<MAP_H-1  && map[y+1][x]!==PATH) px(X,Y+TILE-2,TILE,2,C.dirtDk);
+    if(x>0        && map[y][x-1]!==PATH) px(X,Y,2,TILE,C.dirtDk);
+    if(x<MAP_W-1  && map[y][x+1]!==PATH) px(X+TILE-2,Y,2,TILE,C.dirtDk);
+    if(r>0.86) blob(X+5+r*6, Y+5+hash(y,x)*6, 2.2, 1.6, C.dirt2, false);
+  }
+  /* interior floorboards */
+  for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){
+    if(map[y][x]!==FLOOR) continue;
+    const X=x*TILE, Y=y*TILE;
+    px(X,Y,TILE,TILE, (y%2===0) ? '#e9caa1' : '#e3c197');
+    ctx.strokeStyle='rgba(122,76,47,.30)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(X,Y+0.5); ctx.lineTo(X+TILE,Y+0.5); ctx.stroke();
+    const r=hash(x,y);
+    if(r>0.5){ ctx.beginPath(); ctx.moveTo(X+((r*TILE)|0)+0.5,Y); ctx.lineTo(X+((r*TILE)|0)+0.5,Y+TILE); ctx.stroke(); }
+  }
+  /* walls */
+  for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++){
+    if(map[y][x]!==WALL) continue;
+    const X=x*TILE, Y=y*TILE;
+    px(X,Y,TILE,TILE,C.wall);
+    const inner = (yy,xx)=> map[yy] && map[yy][xx]===FLOOR;
+    if(inner(y+1,x)) px(X,Y+TILE-3,TILE,3,C.wallDk);
+    if(inner(y-1,x)) px(X,Y,TILE,3,C.wallDk);
+    if(inner(y,x+1)) px(X+TILE-3,Y,3,TILE,C.wallDk);
+    if(inner(y,x-1)) px(X,Y,3,TILE,C.wallDk);
+    ctx.strokeStyle='rgba(51,36,28,.55)'; ctx.lineWidth=1.4;
+    if(!(map[y-1] && (map[y-1][x]===WALL||map[y-1][x]===FLOOR))){ ctx.beginPath(); ctx.moveTo(X,Y+0.7); ctx.lineTo(X+TILE,Y+0.7); ctx.stroke(); }
+    if(!(map[y+1] && (map[y+1][x]===WALL||map[y+1][x]===FLOOR))){ ctx.beginPath(); ctx.moveTo(X,Y+TILE-0.7); ctx.lineTo(X+TILE,Y+TILE-0.7); ctx.stroke(); }
+    if(!(map[y][x-1]===WALL||map[y][x-1]===FLOOR)){ ctx.beginPath(); ctx.moveTo(X+0.7,Y); ctx.lineTo(X+0.7,Y+TILE); ctx.stroke(); }
+    if(!(map[y][x+1]===WALL||map[y][x+1]===FLOOR)){ ctx.beginPath(); ctx.moveTo(X+TILE-0.7,Y); ctx.lineTo(X+TILE-0.7,Y+TILE); ctx.stroke(); }
+  }
+  /* flat base under the water shader */
+  for(let y=y0;y<y1;y++) for(let x=x0;x<x1;x++)
+    if(map[y][x]===WATER) px(x*TILE,y*TILE,TILE,TILE,'#56c8e8');
+  /* trees are drawn later, in the depth pass */
+}
+
+function paintTree(g,sway,v,fruit){
+  const o=ctx; ctx=g;
+  drop(0, 14, 7.5, 3.2, .20);
+  rr(-1.8, 5, 3.6, 9, 1.4); fill(C.timber); ink(1.2);
+  const cx=sway, cy=2.5;
+  blob(cx-3.6, cy+2.6, 5.2, 4.6, C.grassDk);
+  blob(cx+3.8, cy+2.4, 5.0, 4.4, C.grassDk);
+  blob(cx, cy, 6.2, 5.6, v ? '#59ba49' : '#4fae43');
+  blob(cx-1.8, cy-2.2, 2.6, 2.0, C.grassHi, false);
+  if(fruit){ blob(cx+3.2,cy+1.4,1.3,1.3,'#ff6b6b',false); blob(cx-3.4,cy+3,1.3,1.3,'#ff6b6b',false); }
+  ctx=o;
+}
+
+/* trees sway, so bake a handful of frames rather than redrawing the shapes */
+const TSS=2, TSW=24, TSH=26, TOX=TSW/2, TOY=TSH-8, TSWAYS=7;
+const TREE_SPR=[];
+(function bakeTrees(){
+  for(let v=0;v<2;v++) for(let f=0;f<2;f++) for(let k=0;k<TSWAYS;k++){
+    const cv=document.createElement('canvas');
+    cv.width=TSW*TSS; cv.height=TSH*TSS;
+    const g=cv.getContext('2d');
+    g.scale(TSS,TSS); g.translate(TOX,TOY);
+    paintTree(g, (k/(TSWAYS-1))*2-1, v, f);
+    TREE_SPR.push(cv);
+  }
+})();
+function drawTree(t){
+  const sway=Math.sin(T/44 + t.ph);
+  let k=Math.round((sway+1)/2*(TSWAYS-1));
+  k = k<0?0:(k>TSWAYS-1?TSWAYS-1:k);
+  const spr=TREE_SPR[((t.v*2 + (t.fruit?1:0))*TSWAYS) + k];
+  ctx.drawImage(spr, (t.x+8-TOX)|0, (t.y+8-TOY)|0, TSW, TSH);
+}
+
+/* ---------------- props ---------------- */
+function drawProp(p){
+  const x=p.x, y=p.y;
+  switch(p.k){
+    case 'bench':
+      drop(x+8,y+14,7,2.4);
+      rr(x+1.5,y+7,13,3.4,1.6); fill(C.timber); ink(1.2);
+      rr(x+1.5,y+2.5,13,3.6,1.6); fill('#b07a4e'); ink(1.2);
+      rr(x+2.5,y+10,2,4,1); fill(C.timberDk); ink(1.1);
+      rr(x+11.5,y+10,2,4,1); fill(C.timberDk); ink(1.1);
+      break;
+    case 'lamp':
+      drop(x+8,y+15,4,2);
+      rr(x+7,y+3,2,12,1); fill('#6b7c8c'); ink(1.2);
+      rr(x+4,y-4,8,7,2.5); fill('#ffe08a'); ink(1.3);
+      blob(x+6.5,y-1.5,1.6,1.6,C.white,false);
+      rr(x+5,y-6,6,2,1); fill('#6b7c8c'); ink(1.1);
+      break;
+    case 'crate':
+      drop(x+8,y+15,6.5,2.2);
+      rr(x+2,y+3,12,12,2.2); fill('#c9954f'); ink(1.3);
+      px(x+2.5,y+8,11,1.6,C.timberDk);
+      px(x+7.2,y+3.5,1.6,11,C.timberDk);
+      blob(x+5,y+5.5,1.6,1.2,'#e0b071',false);
+      break;
+    case 'barrel':
+      drop(x+8,y+15,5.5,2.2);
+      rr(x+3.5,y+2,9,13,3); fill('#b5773f'); ink(1.3);
+      px(x+3.8,y+5,8.4,1.6,C.timberDk); px(x+3.8,y+10,8.4,1.6,C.timberDk);
+      ell(x+8,y+2.6,4.5,1.8); fill('#cf9052'); ink(1.2);
+      break;
+    case 'haybale':
+      drop(x+8,y+15,7,2.4);
+      rr(x+1.5,y+4,13,11,4); fill('#f0cf6a'); ink(1.3);
+      ctx.strokeStyle='rgba(51,36,28,.35)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x+3,y+9); ctx.lineTo(x+13,y+9); ctx.stroke();
+      blob(x+5,y+6.5,2.2,1.3,'#f8e08f',false);
+      break;
+    case 'rock':
+      drop(x+8,y+14,6,2.2);
+      ctx.beginPath();
+      ctx.moveTo(x+2.5,y+13); ctx.lineTo(x+4,y+6); ctx.lineTo(x+8,y+3.5);
+      ctx.lineTo(x+12.5,y+6.5); ctx.lineTo(x+13.5,y+13); ctx.closePath();
+      fill('#9aa7b4'); ink(1.3);
+      ctx.beginPath(); ctx.moveTo(x+5,y+6.6); ctx.lineTo(x+8,y+4.6); ctx.lineTo(x+10,y+6.4);
+      ctx.closePath(); fill('#bcc7d2');
+      break;
+    case 'bush':
+      drop(x+8,y+14,6.5,2.2);
+      blob(x+5,y+9,4.6,4.2,C.grassDk);
+      blob(x+11,y+9,4.4,4.0,C.grassDk);
+      blob(x+8,y+7,5.4,4.8,'#59ba49');
+      blob(x+6.4,y+5.4,2,1.5,C.grassHi,false);
+      if(hash(p.tx,p.ty)>0.5){ blob(x+10,y+8,1.4,1.4,'#ff5f8d',false); blob(x+6,y+10,1.4,1.4,'#ff5f8d',false); }
+      break;
+    case 'flowers':
+      for(let i=0;i<4;i++){
+        const fx=x+3+i*3.6, fy=y+6+((i%2)*4), col=['#ffd23f','#ff5f8d','#7ab8ff','#ff8c42'][i%4];
+        ctx.strokeStyle=C.grassDk; ctx.lineWidth=1.1;
+        ctx.beginPath(); ctx.moveTo(fx,fy+5); ctx.lineTo(fx,fy+1); ctx.stroke();
+        blob(fx,fy,1.9,1.9,col);
+        blob(fx,fy,0.7,0.7,'#fff5c2',false);
+      } break;
+    case 'sign':
+      drop(x+8,y+15,4,1.8);
+      rr(x+7,y+7,2,8,1); fill(C.timberDk); ink(1.2);
+      rr(x+0.5,y+0.5,15,8,2); fill('#d8a866'); ink(1.4);
+      ctx.strokeStyle='rgba(51,36,28,.4)'; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(x+3,y+3.6); ctx.lineTo(x+12,y+3.6);
+      ctx.moveTo(x+3,y+6); ctx.lineTo(x+9,y+6); ctx.stroke();
+      break;
+  }
+}
+
+/* ---------------- interactables ---------------- */
+function drawObj(o){
+  const x=o.x, y=o.y, w=o.pw, h=o.ph;
+  const glow=(near===o), acc=o.accent||'#ffd23f';
+  const pop = glow ? 1+Math.sin(T/9)*0.03 : 1;
+  ctx.save();
+  ctx.translate(x+w/2, y+h); ctx.scale(pop,pop); ctx.translate(-(x+w/2), -(y+h));
+  drop(x+w/2, y+h-1, w*0.44, 3);
+
+  switch(o.kind){
+    case 'desk':
+      rr(x+2,y+h-11,w-4,11,2.5); fill(C.timber); ink(1.4);
+      rr(x+4,y,w-8,h-9,2.5); fill('#c08552'); ink(1.4);
+      px(x+5,y+2,w-10,1.6,'#d9a473');
+      rr(x+w-23,y+1,18,13,2.5); fill('#4a5568'); ink(1.4);
+      rr(x+w-21,y+3,14,9,1.8); fill(glow?'#8ff0ff':C.glass);
+      ctx.globalAlpha=.5; rr(x+w-20,y+4,5,7,1); fill(C.white); ctx.globalAlpha=1;
+      rr(x+6,y+5,13,7,2); fill('#e6eaf2'); ink(1.3);
+      rr(x+w-35,y+2,7,10,2); fill('#ff6b6b'); ink(1.3);
+      break;
+
+    case 'arcade': {
+      rr(x,y+3,w,h-3,3); fill('#4a5568'); ink(1.5);
+      rr(x+1.5,y+6,w-3,13,2); fill('#2b3244'); ink(1.2);
+      rr(x+2.5,y+7,w-5,11,1.6); fill(glow?acc:shade(acc,-.18));
+      ctx.globalAlpha=.35; rr(x+3.5,y+8,(w-7)*0.4,9,1); fill(C.white); ctx.globalAlpha=1;
+      rr(x+2,y+h-11,w-4,7,2); fill('#5b6辺'.slice(0,7)||'#5b6478'); ink(1.2);
+      blob(x+6,y+h-7.5,1.9,1.9,'#ff5f8d'); blob(x+w-6,y+h-7.5,1.9,1.9,'#7ab8ff');
+      rr(x+0.5,y-1,w-1,6,2.5); fill(acc); ink(1.4);
+      ctx.globalAlpha=.45; rr(x+2,y+0.2,w-4,2,1); fill(C.white); ctx.globalAlpha=1;
+      break;
+    }
+
+    case 'shelf':
+    case 'cartridges': {
+      rr(x,y,w,h,2.5); fill(C.timber); ink(1.5);
+      px(x+1.5,y+h/2-0.8,w-3,1.6,C.timberDk);
+      const cs=['#ff6b6b','#4cc9f0','#7ee787','#ffd23f','#c77dff','#06d6a0'];
+      for(let i=0;i<w-7;i+=5){
+        const k=(i/5|0);
+        rr(x+3+i,y+2.5,3.6,h/2-4,1); fill(cs[k%6]); ink(1);
+        rr(x+3+i,y+h/2+1.5,3.6,h/2-4,1); fill(cs[(k+3)%6]); ink(1);
+      }
+      break;
+    }
+
+    case 'board':
+      rr(x,y,w,h,2.5); fill(C.white); ink(1.5);
+      ctx.lineCap='round'; ctx.lineWidth=1.8;
+      ['#4a5568','#33bde0','#4a5568','#ff6b6b'].forEach((c,i)=>{
+        ctx.strokeStyle=c; ctx.beginPath();
+        ctx.moveTo(x+5,y+5+i*4.4); ctx.lineTo(x+5+(w-12)*(0.92-i*0.16),y+5+i*4.4); ctx.stroke();
+      });
+      blob(x+w-5,y+h-4,1.6,1.6,'#ff5f8d');
+      break;
+
+    case 'trophy':
+      rr(x,y+h-7,w,7,2); fill(C.timber); ink(1.4);
+      rr(x+1,y,w-2,h-6,2.5); fill('#cfe6f2'); ink(1.4);
+      ctx.globalAlpha=.45; rr(x+2,y+1,(w-4)*0.35,h-9,1.5); fill(C.white); ctx.globalAlpha=1;
+      rr(x+7,y+4,6,7,1.5); fill(glow?'#ffe066':'#f0c419'); ink(1.3);
+      rr(x+5.5,y+11,9,2,1); fill('#c9a227'); ink(1.1);
+      blob(x+22,y+8,3,3.4,'#dfe7ef'); rr(x+19.5,y+11.5,7,2,1); fill('#b8c2cc'); ink(1.1);
+      break;
+
+    case 'terminal':
+      rr(x+2,y+h-5,w-4,5,2); fill('#4a5568'); ink(1.3);
+      rr(x,y,w,h-4,2.5); fill('#3a4459'); ink(1.5);
+      rr(x+2,y+2,w-4,h-9,1.8); fill(glow?'#8bffb0':'#4fbe7a');
+      ctx.strokeStyle='rgba(20,40,28,.55)'; ctx.lineWidth=1;
+      for(let i=0;i<3;i++){ ctx.beginPath(); ctx.moveTo(x+4,y+4.5+i*3); ctx.lineTo(x+4+(w-10)*(0.8-i*0.15),y+4.5+i*3); ctx.stroke(); }
+      break;
+
+    case 'rack':
+      rr(x,y,w,h,2.5); fill('#4a5568'); ink(1.5);
+      for(let i=0;i<h-9;i+=5){
+        rr(x+2,y+4+i,w-4,3.8,1.2); fill('#2f3purple'.slice(0,7)||'#2f3849'); ink(1);
+        blob(x+4.6,y+5.9+i,1.1,1.1, glow?'#7ee787':'#4fbe7a',false);
+        blob(x+8,y+5.9+i,1.1,1.1,(Math.floor(T/22)+i)%3===0?'#ffd23f':'#6b7c8c',false);
+      }
+      break;
+
+    case 'arbench':
+      rr(x,y+h-7,w,7,2.5); fill(C.timber); ink(1.4);
+      rr(x+2.5,y+1,11,17,2.5); fill('#4a5568'); ink(1.4);
+      rr(x+4,y+2.5,8,14,1.8); fill(glow?'#8ff0ff':C.glass);
+      rr(x+w-16,y+5,12,12,2); fill('#e8dcc0'); ink(1.3);
+      blob(x+w-10,y+3, 3.4,3.0, glow?'#8ff0a8':'#69c97a');
+      break;
+
+    case 'vrrig':
+      rr(x+w/2-8,y+h-6,16,6,2.5); fill('#6b7c8c'); ink(1.4);
+      rr(x+w/2-2.5,y+h-15,5,10,2); fill('#8a9aa8'); ink(1.3);
+      rr(x+3,y+1,w-6,14,5); fill(glow?'#6b7ae0':'#5b6ad0'); ink(1.5);
+      rr(x+6,y+4,w-12,8,3); fill(glow?'#8ff0ff':'#2b3244'); ink(1.2);
+      ctx.globalAlpha=.5; rr(x+7.5,y+5,4,5.5,1.5); fill(C.white); ctx.globalAlpha=1;
+      rr(x+1,y+4,3,7,1.5); fill('#48579e'); ink(1.1);
+      rr(x+w-4,y+4,3,7,1.5); fill('#48579e'); ink(1.1);
+      break;
+
+    default:
+      rr(x+4,y+8,8,7,2); fill('#c9954f'); ink(1.3);
+      blob(x+8,y+4,4.4,4.0,'#59ba49'); blob(x+4.5,y+6,3,2.6,C.grassDk); blob(x+11,y+6,3,2.6,C.grassDk);
+  }
+  ctx.restore();
+
+  if(!o.secret) label(o.label, x+w/2, y-4+(o.ldy||0), glow?'#c8541f':C.ink, 7);
+  if(!o.seen && !o.secret){
+    const bob=Math.sin(T/16)*1.6, my=(o.ldy||0), bx=x+w/2, by=y-13+bob+my;
+    ctx.save(); ctx.translate(bx,by);
+    blob(0,0,4.6,5.4,'#ffd23f');
+    ctx.fillStyle=C.ink; ctx.font='bold 8px system-ui, sans-serif'; ctx.textAlign='center';
+    ctx.fillText('!',0,3); ctx.textAlign='left';
+    ctx.restore();
+  }
+}
+
+/* ---------------- buildings ----------------
+   Facades and roofs are static art, so each one is painted once into its own
+   offscreen canvas. Per frame we blit them and draw only the parts that move:
+   the door light, the chimney smoke and the hanging sign.                    */
+
+function paintFacade(g,b){
+  const o=ctx; ctx=g;
+  const fw=b.w*TILE;
+  rr(0,6,fw,TILE+2,2); fill(C.wall); ink(1.6);
+  px(1,6+TILE-4,fw-2,3,C.wallDk);
+  for(let i=1;i<b.w-1;i++){
+    if(b.x+i===b.door) continue;
+    if(i%3!==1) continue;
+    const wx=i*TILE;
+    rr(wx+3,9.5,10,9,2); fill(C.glassDk); ink(1.3);
+    rr(wx+4,10.5,8,7,1.5); fill(C.glass);
+    ctx.globalAlpha=.75; ctx.beginPath();
+    ctx.moveTo(wx+5,17); ctx.lineTo(wx+11,11); ctx.lineTo(wx+12,12.4);
+    ctx.lineTo(wx+6.4,17.6); ctx.closePath(); fill(C.white); ctx.globalAlpha=1;
+    rr(wx+2,18,12,3.4,1.2); fill(C.timber); ink(1.2);
+    blob(wx+5,18.4,1.5,1.5,'#ff5f8d',false); blob(wx+8.5,18,1.5,1.5,'#ffd23f',false);
+    blob(wx+11.5,18.6,1.5,1.5,'#7ab8ff',false);
+  }
+  /* striped awning + potted plants stay with the baked art */
+  const dx=(b.door-b.x)*TILE;
+  for(let i=0;i<4;i++){
+    ctx.fillStyle = i%2 ? '#f2f2f2' : shade(b.roof,.06);
+    ctx.beginPath(); ctx.moveTo(dx-3+i*5.5, 5); ctx.lineTo(dx+2.5+i*5.5, 5);
+    ctx.lineTo(dx+1.5+i*5.5, 9.5); ctx.lineTo(dx-2+i*5.5, 9.5); ctx.closePath(); ctx.fill();
+  }
+  rr(dx-4,3.5,TILE+8,3,1.5); fill(shade(b.roof,-.08)); ink(1.4);
+  [dx-7, dx+TILE+2].forEach(px0=>{
+    rr(px0,15,6,6,1.5); fill('#c9784f'); ink(1.2);
+    blob(px0+3,13,4,3.4,'#59ba49');
+  });
+  ctx=o;
+}
+
+function paintRoofArt(g,b){
+  const o=ctx; ctx=g;
+  const rw=(b.w+2)*TILE, rh=(b.h+1)*TILE, ry=14;
+  const cxp=rw-26;
+  rr(cxp,ry-9,9,13,2); fill('#c96b4f'); ink(1.5);
+  rr(cxp-1.5,ry-11,12,4,1.5); fill('#e08060'); ink(1.4);
+  rr(0, ry, rw, rh-3, 7); fill(b.roof); ink(1.8);
+  const ridge = ry + (rh-3)/2;
+  ctx.save();
+  rr(0, ry, rw, rh-3, 7); ctx.clip();
+  for(let yy=ry+7; yy<ry+rh-3; yy+=7){
+    ctx.fillStyle = yy<ridge ? shade(b.roof,-.10) : shade(b.roof,-.16);
+    for(let xx=-6; xx<rw+6; xx+=11){
+      const off=(((yy-ry)/7|0)%2)*5.5;
+      ctx.beginPath(); ctx.ellipse(xx+off+5.5, yy, 6, 4.4, 0, Math.PI, 0); ctx.fill();
+    }
+  }
+  ctx.fillStyle='rgba(255,255,255,.14)';
+  ctx.fillRect(0, ry, rw, (rh-3)/2 - 2);
+  ctx.restore();
+  rr(2, ridge-3.5, rw-4, 7, 3.5); fill(shade(b.roof,.20)); ink(1.5);
+  ctx=o;
+}
+
+const BSS = 2;
+BUILDINGS.forEach(b=>{
+  const fw=b.w*TILE;
+  b.fcv=document.createElement('canvas');
+  b.fcv.width=fw*BSS; b.fcv.height=(TILE+16)*BSS;
+  const fg=b.fcv.getContext('2d'); fg.scale(BSS,BSS);
+  paintFacade(fg,b);
+  b.fx=b.x*TILE; b.fy=(b.y+b.h-1)*TILE-6; b.fw=fw; b.fh=TILE+16;
+
+  const rw=(b.w+2)*TILE, rh=(b.h+1)*TILE;
+  b.rcv=document.createElement('canvas');
+  b.rcv.width=rw*BSS; b.rcv.height=(rh+14)*BSS;
+  const rg=b.rcv.getContext('2d'); rg.scale(BSS,BSS);
+  paintRoofArt(rg,b);
+  b.rx=(b.x-1)*TILE; b.ry=(b.y-2)*TILE-14; b.rw=rw; b.rh=rh+14;
+});
+
+function drawFacade(b){
+  ctx.drawImage(b.fcv, b.fx, b.fy, b.fw, b.fh);
+  const fy=(b.y+b.h-1)*TILE, dx=b.door*TILE;
+  rr(dx-1,fy-1,TILE+2,TILE+1,2.5); fill(C.timberDk); ink(1.5);
+  rr(dx+0.6,fy+0.6,TILE-3.2,TILE-1,2); fill(b.a>0.5 ? '#a8652f' : '#ffcf6b');
+  if(b.a<=0.5){ ctx.globalAlpha=.5; rr(dx+1.6,fy+1.6,4,TILE-3,1.5); fill(C.white); ctx.globalAlpha=1; }
+  blob(dx+TILE-5.5, fy+TILE/2, 1.3,1.3, '#ffd23f');
+  rr(dx+1,fy+TILE,TILE-2,3,1.2); fill('#c98d4f'); ink(1.2);
+}
+
+function drawRoof(b){
+  if(b.a<=0.02) return;
+  ctx.save(); ctx.globalAlpha=b.a;
+  ctx.drawImage(b.rcv, b.rx, b.ry, b.rw, b.rh);
+  /* chimney smoke */
+  const cxp=b.rx+b.rw-26+4.5, cyp=b.ry+14-13;
+  ctx.globalAlpha=b.a*0.5;
+  for(let i=0;i<3;i++){
+    const p=((T/2.2)+i*26)%78;
+    blob(cxp+Math.sin(p/13)*4, cyp-p*0.34, 2.6+p*0.045, 2.4+p*0.045, C.white, false);
+  }
+  ctx.globalAlpha=b.a;
+  if(b.a<0.55){ ctx.restore(); return; }
+  const rw=b.rw, ry=b.ry+14, rh=b.rh-14;
+  const sw=Math.min(rw-24, b.label.length*4.6+18);
+  const sx=b.rx+(rw-sw)/2, sy=ry+rh-16;
+  ctx.strokeStyle=C.ink; ctx.lineWidth=1.1;
+  ctx.beginPath(); ctx.moveTo(sx+6,sy-4); ctx.lineTo(sx+6,sy);
+  ctx.moveTo(sx+sw-6,sy-4); ctx.lineTo(sx+sw-6,sy); ctx.stroke();
+  rr(sx,sy,sw,12,3); fill('#f6e0b0'); ink(1.6);
+  ctx.font='bold 7px system-ui, -apple-system, sans-serif'; ctx.textAlign='center';
+  ctx.fillStyle=C.ink; ctx.fillText(b.label, sx+sw/2, sy+8.4); ctx.textAlign='left';
+  ctx.restore();
+}
+
+/* ---------------- tall grass ----------------
+   Stroking ~300 clumps of bezier blades every frame was the single most
+   expensive thing on screen, so the clumps are baked once into a small
+   sprite sheet (one image per bend angle x height) and blitted instead.  */
+const REED_GREEN = ['#4f9a3a','#59ba49','#63c45f','#478f37'];
+const RSS = 2;                    // supersample of the baked sprites
+const RSW = 19, RSH = 25;         // sprite size in world units (kept tight: blend cost is area)
+const ROX = RSW/2, ROY = RSH-3;   // where the base of the clump sits
+const RBENDS = 15, RBMAX = 8.0, RHEIGHTS = 3;
+const REED_SPR = [];
+
+(function bakeReeds(){
+  for(let hi=0; hi<RHEIGHTS; hi++){
+    for(let bi=0; bi<RBENDS; bi++){
+      const cv = document.createElement('canvas');
+      cv.width = RSW*RSS; cv.height = RSH*RSS;
+      const g = cv.getContext('2d');
+      g.scale(RSS,RSS); g.translate(ROX, ROY);
+      const bend = (bi/(RBENDS-1))*2*RBMAX - RBMAX;
+      const base = 9 + hi*4.2;
+      g.beginPath();
+      for(let i=0;i<4;i++){
+        const off  = (i-1.5)*2.4;
+        const lean = bend*(0.75 + i*0.16);
+        const h    = base*(0.78 + (i%2)*0.22);
+        g.moveTo(off, 0);
+        g.quadraticCurveTo(off + lean*0.25, -h*0.55, off + lean, -h);
+      }
+      g.lineCap='round'; g.lineJoin='round';
+      g.strokeStyle=C.ink;    g.lineWidth=2.6; g.stroke();
+      g.strokeStyle='#59ba49';g.lineWidth=1.4; g.stroke();
+      REED_SPR.push(cv);
+    }
+  }
+})();
+
+function drawReed(r){
+  const gust = 1 + Math.sin(T*0.011 + r.x*0.004)*0.55;
+  const wind = Math.sin(T*0.045 + r.ph + r.x*0.045) * 2.4 * gust;
+  /* the player pushes the blades aside as they wade through */
+  const dx = r.x - P.x, dy = r.y - P.y;
+  const d2 = dx*dx + dy*dy;
+  let bend = wind;
+  if(d2 < 240){ const d=Math.sqrt(d2); bend += (1 - d/15.5) * 8 * (dx<0 ? -1 : 1); }
+
+  let bi = Math.round((bend + RBMAX)/(2*RBMAX)*(RBENDS-1));
+  bi = bi<0 ? 0 : (bi>RBENDS-1 ? RBENDS-1 : bi);
+  const spr = REED_SPR[r.hb*RBENDS + bi];
+  const sc  = r.sc;
+  /* nearest-neighbour + integer destination: the sprites are baked at ~1:1 for
+     the usual zoom, so filtering here buys nothing and costs a lot */
+  ctx.drawImage(spr, (r.x-ROX*sc)|0, (r.y-ROY*sc)|0, (RSW*sc)|0, (RSH*sc)|0);
+
+  if(r.cat){
+    const h = (9 + r.hb*4.2)*sc;
+    ctx.save(); ctx.translate(r.x + bend*0.91*sc, r.y - h*0.98);
+    ell(0,0,1.7,3.4); fill('#8a5a3b'); ink(1.2);
+    ctx.restore();
+  }
+}
+
+/* ---------------- critters ---------------- */
+function drawCow(c){
+  const x=c.x, y=c.y, f=c.face;
+  const moving = (c.graze<=0 && (Math.abs(c.vx)+Math.abs(c.vy))>0.02);
+  const bob = moving ? Math.sin(T/7)*0.7 : 0;
+  const head = c.graze>0 ? 3.4 : 0;
+  drop(x, y+7, 8.5, 3);
+  ctx.save(); ctx.translate(x,y+bob);
+  /* legs */
+  const sw=moving?Math.sin(T/7)*1.4:0;
+  [[-4.5,sw],[4.5,-sw]].forEach(([lx,o])=>{ rr(lx-1.4,3.4,2.8,5+o,1.2); fill(C.cowDk); ink(1.2); });
+  /* body */
+  blob(0,0,9,6.4,C.cow,1.6);
+  ctx.save(); ell(0,0,9,6.4); ctx.clip();
+  blob(-3.6,-1.6,3.2,2.4,C.spot,false); blob(3.4,1.8,2.6,2.0,C.spot,false);
+  blob(1.2,-3.2,1.8,1.3,C.spot,false);
+  ctx.restore();
+  /* tail */
+  ctx.strokeStyle=C.ink; ctx.lineWidth=1.2;
+  ctx.beginPath(); ctx.moveTo(-f*8.4,-1); ctx.quadraticCurveTo(-f*11,1+Math.sin(T/11)*1.2,-f*10,4); ctx.stroke();
+  blob(-f*10,4.6,1.3,1.5,C.spot,false);
+  /* head */
+  ctx.save(); ctx.translate(f*8.6, -1+head);
+  blob(0,0,4.4,4.0,C.cow,1.5);
+  blob(f*1.6,1.6,2.6,2.0,C.snout,1.2);
+  blob(f*0.8,1.4,0.5,0.5,C.ink,false); blob(f*2.4,1.4,0.5,0.5,C.ink,false);
+  const blink = (T%210)<8;
+  if(blink){ ctx.strokeStyle=C.ink; ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(f*0.4,-1.4); ctx.lineTo(f*2,-1.4); ctx.stroke(); }
+  else blob(f*1.2,-1.4,0.9,1.0,C.ink,false);
+  blob(-f*2.6,-2.6,2.0,1.4,C.cowDk,1.1);
+  rr(f*0.2,-4.8,1.6,1.8,0.7); fill('#e8dcc0'); ink(1);
+  ctx.restore();
+  ctx.restore();
+}
+
+function drawDuck(d,isMother){
+  const x=d.x, y=d.y, s=isMother?1:0.68;
+  const bob=Math.sin(T/9 + x*0.3)*0.5;
+  ctx.save(); ctx.translate(x,y+bob); ctx.scale(s,s);
+  ctx.fillStyle='rgba(255,255,255,.5)';
+  ell(0,3.4,6,1.8); ctx.fill();
+  blob(0,0,5,4.2,C.duck,1.4);
+  ctx.save(); ell(0,0,5,4.2); ctx.clip();
+  blob(-1.6,1.4,3,2.2,C.duckDk,false); ctx.restore();
+  blob(3.2,-3.4,3.0,3.0,C.duck,1.4);
+  ctx.beginPath(); ctx.moveTo(5.4,-3.6); ctx.lineTo(8.2,-2.8); ctx.lineTo(5.4,-1.8); ctx.closePath();
+  fill(C.bill); ink(1.1);
+  blob(3.6,-4.2,0.75,0.85,C.ink,false);
+  blob(4.0,-4.5,0.3,0.3,C.white,false);
+  ctx.restore();
+}
+
+/* butterflies replace the fireflies now that it's daytime */
+function drawButterflies(){
+  for(const f of flies){
+    const flap=Math.abs(Math.sin(f.p*7));
+    const c=['#ff8ec7','#ffd23f','#8fd4ff','#ff9f68'][(f.x|0)%4];
+    ctx.save(); ctx.translate(f.x,f.y);
+    ctx.fillStyle=c;
+    ell(-1.6,0,1.5,0.7+flap*1.7); ctx.fill();
+    ell( 1.6,0,1.5,0.7+flap*1.7); ctx.fill();
+    ctx.fillStyle=C.ink; ctx.fillRect(-0.4,-1.2,0.8,2.4);
+    ctx.restore();
+  }
+}
+
+/* slow cloud shadows drifting over the fields */
+const clouds = [];
+for(let i=0;i<6;i++) clouds.push({x:Math.random()*W, y:Math.random()*H, r:60+Math.random()*70, s:0.10+Math.random()*0.09});
+function drawCloudShadows(vx,vy,vw,vh){
+  for(const c of clouds){ c.x += c.s; if(c.x-c.r>W){ c.x=-c.r; c.y=Math.random()*H; } }
+  ctx.save();
+  /* punch the open houses out of the shadow layer: a roof blocks the sun */
+  ctx.beginPath();
+  ctx.rect(vx-8, vy-8, vw+16, vh+16);
+  for(const b of BUILDINGS){
+    if(b.a > 0.9) continue;                       // roof still on: shadow falls on it
+    ctx.rect(b.x*TILE, b.y*TILE, b.w*TILE, b.h*TILE);
+  }
+  ctx.clip('evenodd');
+  ctx.fillStyle='rgba(38,58,32,.13)';
+  for(const c of clouds){
+    ell(c.x, c.y, c.r, c.r*0.52); ctx.fill();
+    ell(c.x+c.r*0.5, c.y+c.r*0.16, c.r*0.6, c.r*0.34); ctx.fill();
+  }
+  ctx.restore();
+}
+
+/* ------------------------------------------------------------------
+   The hero, cartoonised from the reference photo: volume of dark hair
+   swept up and back, round wire glasses, dark polo with a white collar.
+   `pose` swaps the arms and whatever he is holding.
+   ------------------------------------------------------------------ */
+function paintHero(dir, step, blink, pose, t){
+  pose = pose || 'walk'; t = t || 0;
+  const front = dir===2 || pose!=='walk';
+
+  /* ---- legs ---- */
+  rr(-3.4, 3.6+step*1.2, 2.8, 5, 1.3); fill(C.jeans); ink(1.2);
+  rr( 0.6, 3.6-step*1.2, 2.8, 5, 1.3); fill(C.jeans); ink(1.2);
+
+  /* ---- torso: polo shirt ---- */
+  rr(-4.6,-2.4,9.2,7.6,3); fill(C.shirt); ink(1.5);
+  ctx.globalAlpha=.22; rr(-3.7,-1.6,2.6,5,1.3); fill(C.white); ctx.globalAlpha=1;
+  if(dir===0){
+    /* seen from behind: back of the collar and a seam */
+    ctx.beginPath(); ctx.moveTo(-2.7,-3.3); ctx.lineTo(2.7,-3.3);
+    ctx.lineTo(2.4,-1.7); ctx.lineTo(-2.4,-1.7); ctx.closePath();
+    fill(C.collar); ink(1.1);
+    ctx.strokeStyle='rgba(51,36,28,.35)'; ctx.lineWidth=0.9;
+    ctx.beginPath(); ctx.moveTo(0,-1.5); ctx.lineTo(0,4.6); ctx.stroke();
+  }
+  if(front){
+    /* collar */
+    ctx.beginPath(); ctx.moveTo(-2.6,-2.6); ctx.lineTo(0,-0.2); ctx.lineTo(2.6,-2.6);
+    ctx.lineTo(2.6,-3.4); ctx.lineTo(-2.6,-3.4); ctx.closePath();
+    fill(C.collar); ink(1.1);
+    ctx.strokeStyle=C.ink; ctx.lineWidth=0.9;
+    ctx.beginPath(); ctx.moveTo(0,-0.2); ctx.lineTo(0,2.2); ctx.stroke();
+    blob(-0.9,0.8,0.34,0.34,C.ink,false); blob(-0.9,2.0,0.34,0.34,C.ink,false);
+  }
+
+  /* ---- arms + whatever he is holding ---- */
+  const armL=(x,y,rot)=>{ ctx.save(); ctx.translate(x,y); if(rot) ctx.rotate(rot);
+                          rr(-1.2,-0.6,2.4,4.8,1.2); fill(C.shirtDk); ink(1.2);
+                          blob(0,4.6,1.5,1.5,C.skin,1.2); ctx.restore(); };
+  switch(pose){
+    case 'wave': {
+      const w=Math.sin(t/4)*0.42;
+      armL(-5.2,-1.6, 0.12);
+      ctx.save(); ctx.translate(5.2,-1.8); ctx.rotate(-1.15+w);
+      rr(-1.2,-0.6,2.4,4.8,1.2); fill(C.shirtDk); ink(1.2);
+      blob(0,4.9,1.7,1.7,C.skin,1.2);
+      ctx.restore(); break;
+    }
+    case 'controller': {
+      const th=Math.sin(t/5)*0.5;
+      armL(-4.6,-1.4, 0.55); armL(4.6,-1.4, -0.55);
+      rr(-3.6,2.2,7.2,3.4,1.6); fill('#4a5568'); ink(1.3);
+      rr(-4.6,2.4,1.8,3,0.9); fill('#4a5568'); ink(1.2);
+      rr( 2.8,2.4,1.8,3,0.9); fill('#4a5568'); ink(1.2);
+      blob(-1.9,3.9+th*0.3,0.7,0.7,'#ffd23f',false);
+      blob( 1.9,3.9-th*0.3,0.7,0.7,'#ff5f8d',false);
+      break;
+    }
+    case 'laptop': {
+      const th=Math.sin(t/3)*0.35;
+      armL(-4.4,-1.2, 0.75+th*0.1); armL(4.4,-1.2, -0.75-th*0.1);
+      rr(-4.4,3.4,8.8,1.6,0.8); fill('#8a93a5'); ink(1.2);
+      ctx.save(); ctx.translate(0,3.4); ctx.rotate(-0.20);
+      rr(-3.8,-4.6,7.6,4.8,1); fill('#4a5568'); ink(1.3);
+      rr(-3.1,-4.0,6.2,3.6,0.6); fill('#9fe6c4');
+      ctx.restore(); break;
+    }
+    case 'vr': {
+      armL(-5.2,-1.6, 0.2); armL(5.2,-1.6, -0.2); break;
+    }
+    case 'tablet': {
+      const g=Math.sin(t/9)*0.12;
+      armL(-4.6,-1.2, 0.62); armL(4.6,-1.2, -0.62);
+      ctx.save(); ctx.translate(0,2.6); ctx.rotate(g);
+      rr(-3.2,-2.6,6.4,5.2,1); fill('#4a5568'); ink(1.3);
+      rr(-2.6,-2.0,5.2,4.0,0.6); fill(C.lens);
+      blob(0,-0.2,1.3,1.3,'#69c97a',false);
+      ctx.restore(); break;
+    }
+    case 'marker': {
+      const wr=Math.sin(t/6)*0.30;
+      armL(-5.2,-1.6, 0.12);
+      ctx.save(); ctx.translate(5.0,-1.8); ctx.rotate(-1.0+wr);
+      rr(-1.2,-0.6,2.4,4.8,1.2); fill(C.shirtDk); ink(1.2);
+      blob(0,4.9,1.6,1.6,C.skin,1.2);
+      rr(-0.7,5.4,1.4,3.4,0.6); fill('#ff5f8d'); ink(1.1);
+      ctx.restore(); break;
+    }
+    case 'trophy': {
+      const lift=Math.sin(t/12)*0.5;
+      armL(-5.2,-1.6, 0.12);
+      ctx.save(); ctx.translate(5.0,-2.0-lift); ctx.rotate(-1.35);
+      rr(-1.2,-0.6,2.4,4.8,1.2); fill(C.shirtDk); ink(1.2);
+      ctx.restore();
+      ctx.save(); ctx.translate(8.4,-5.0-lift);
+      rr(-1.9,-2.4,3.8,3.4,1); fill('#f0c419'); ink(1.2);
+      rr(-1.1,1.0,2.2,1.0,0.4); fill('#c9a227'); ink(1.1);
+      rr(-2.0,2.0,4.0,1.2,0.5); fill('#c9a227'); ink(1.1);
+      ctx.restore(); break;
+    }
+    case 'wrench': {
+      const sw=Math.sin(t/7)*0.22;
+      armL(-5.2,-1.6, 0.12);
+      ctx.save(); ctx.translate(5.0,-1.6); ctx.rotate(-0.5+sw);
+      rr(-1.2,-0.6,2.4,4.8,1.2); fill(C.shirtDk); ink(1.2);
+      blob(0,4.9,1.6,1.6,C.skin,1.2);
+      ctx.save(); ctx.translate(0,5.2); ctx.rotate(0.4);
+      rr(-0.6,-4.6,1.2,5.2,0.5); fill('#aeb8c6'); ink(1.1);
+      rr(-1.5,-6.0,3.0,2.0,0.7); fill('#aeb8c6'); ink(1.1);
+      ctx.restore(); ctx.restore(); break;
+    }
+    case 'envelope': {
+      const w=Math.sin(t/4)*0.40;
+      ctx.save(); ctx.translate(-5.2,-1.8); ctx.rotate(1.15-w);
+      rr(-1.2,-0.6,2.4,4.8,1.2); fill(C.shirtDk); ink(1.2);
+      blob(0,4.9,1.7,1.7,C.skin,1.2);
+      ctx.restore();
+      armL(4.8,-1.4, -0.62);
+      ctx.save(); ctx.translate(4.6,3.0); ctx.rotate(-0.12);
+      rr(-2.8,-2.0,5.6,4.0,0.8); fill(C.collar); ink(1.2);
+      ctx.strokeStyle=C.ink; ctx.lineWidth=1;
+      ctx.beginPath(); ctx.moveTo(-2.8,-2.0); ctx.lineTo(0,0.3); ctx.lineTo(2.8,-2.0); ctx.stroke();
+      ctx.restore(); break;
+    }
+    case 'nothing':
+      armL(-5.2,-1.6, 0.10); armL(5.2,-1.6, -0.10); break;
+    default:
+      rr(-6.4,-1.6-step*1.1,2.4,4.6,1.2); fill(C.shirtDk); ink(1.2);
+      rr( 4.0,-1.6+step*1.1,2.4,4.6,1.2); fill(C.shirtDk); ink(1.2);
+  }
+
+  /* ---- head ---- */
+  blob(0,-8.4,5.5,5.3,C.skin,1.5);
+  /* jaw shading */
+  ctx.globalAlpha=.20; blob(0,-6.4,3.6,1.9,C.skinDk,false); ctx.globalAlpha=1;
+  /* hair: swept up, with volume above the crown */
+  ctx.save();
+  blob(-0.3,-12.1,6.1,3.9,C.hair,1.4);
+  blob(-2.3,-13.6,3.4,2.6,C.hair,1.4);
+  blob( 1.9,-13.2,3.0,2.3,C.hair,1.4);
+  ctx.save(); ell(0,-8.4,5.5,5.3); ctx.clip();
+  ell(-0.3,-11.4,5.9,3.6); fill(C.hair);
+  ell(-3.4,-9.6,2.3,2.6); fill(C.hair);
+  ell( 3.4,-9.8,2.1,2.4); fill(C.hair);
+  ctx.restore();
+  ctx.globalAlpha=.30; blob(-2.4,-13.4,1.5,0.9,C.hairHi,false); ctx.globalAlpha=1;
+  ctx.restore();
+  if(dir===0){
+    /* facing away: ears, nape and a highlight so he still reads as a head */
+    blob(-5.3,-7.9,1.15,1.5,C.skin,1.2);
+    blob( 5.3,-7.9,1.15,1.5,C.skin,1.2);
+    ell(0,-8.6,5.4,5.1); fill(C.hair); ink(1.4);
+    ctx.globalAlpha=.32;
+    blob(-1.9,-11.0,2.5,1.5,C.hairHi,false);
+    blob( 2.2,-10.4,1.5,1.0,C.hairHi,false);
+    ctx.globalAlpha=1;
+    /* nape */
+    ctx.strokeStyle='rgba(51,36,28,.55)'; ctx.lineWidth=1;
+    ctx.beginPath(); ctx.moveTo(-2.2,-5.2); ctx.quadraticCurveTo(0,-4.2,2.2,-5.2); ctx.stroke();
+    blob(0,-4.4,1.9,1.0,C.skin,1.1);
+  } else {
+    /* sideburns */
+    ctx.globalAlpha=.55; blob(-4.6,-8.0,0.8,1.6,C.hair,false); blob(4.6,-8.0,0.8,1.6,C.hair,false); ctx.globalAlpha=1;
+  }
+
+  if(pose==='vr'){
+    /* headset instead of a face */
+    rr(-5.4,-10.2,10.8,4.6,1.8); fill('#5b6ad0'); ink(1.5);
+    rr(-4.2,-9.4,8.4,3.0,1.2); fill(C.lens);
+    ctx.globalAlpha=.55; rr(-3.6,-9.1,2.6,2.4,0.8); fill(C.white); ctx.globalAlpha=1;
+    rr(-5.9,-9.4,1.0,2.6,0.5); fill('#48579e'); ink(1.1);
+    rr( 4.9,-9.4,1.0,2.6,0.5); fill('#48579e'); ink(1.1);
+    ctx.strokeStyle=C.ink; ctx.lineWidth=0.85; ctx.lineCap='round'; ctx.beginPath();
+    ctx.arc(0,-6.4,1.15,0.28*Math.PI,0.72*Math.PI); ctx.stroke();
+    return;
+  }
+
+  if(dir!==0){
+    const ex = dir===1?1.3:(dir===3?-1.3:0);
+    /* round wire glasses */
+    const gx=2.15, gy=-8.3, gr=2.05;
+    ctx.beginPath(); ctx.arc(-gx+ex,gy,gr,0,6.283); fill(C.lens);
+    ctx.beginPath(); ctx.arc( gx+ex,gy,gr,0,6.283); fill(C.lens);
+    ctx.globalAlpha=.65;
+    ctx.beginPath(); ctx.arc(-gx+ex-0.6,gy-0.6,0.75,0,6.283); fill(C.white);
+    ctx.beginPath(); ctx.arc( gx+ex-0.6,gy-0.6,0.75,0,6.283); fill(C.white);
+    ctx.globalAlpha=1;
+    /* eyes behind the lenses */
+    if(blink){
+      ctx.strokeStyle=C.ink; ctx.lineWidth=0.9; ctx.lineCap='round';
+      ctx.beginPath();
+      ctx.moveTo(-gx+ex-0.8,gy); ctx.lineTo(-gx+ex+0.8,gy);
+      ctx.moveTo( gx+ex-0.8,gy); ctx.lineTo( gx+ex+0.8,gy); ctx.stroke();
+    } else {
+      blob(-gx+ex,gy,0.72,0.82,C.ink,false);
+      blob( gx+ex,gy,0.72,0.82,C.ink,false);
+    }
+    ctx.strokeStyle=C.frame; ctx.lineWidth=0.75; ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(-gx+ex,gy,gr,0,6.283); ctx.stroke();
+    ctx.beginPath(); ctx.arc( gx+ex,gy,gr,0,6.283); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(-gx+ex+gr,gy-0.2); ctx.lineTo(gx+ex-gr,gy-0.2);
+    ctx.moveTo(-gx+ex-gr,gy-0.3); ctx.lineTo(-5.2+ex,gy-0.8);
+    ctx.moveTo( gx+ex+gr,gy-0.3); ctx.lineTo( 5.2+ex,gy-0.8);
+    ctx.stroke();
+    /* the slight, closed-mouth smile from the photo */
+    ctx.strokeStyle=C.ink; ctx.lineWidth=0.85; ctx.lineCap='round';
+    ctx.beginPath(); ctx.arc(ex,-6.5,1.15,0.28*Math.PI,0.72*Math.PI); ctx.stroke();
+  }
+}
+
+function drawPlayer(){
+  const step=P.moving?Math.sin(P.anim*1.6):0;
+  const squash=P.moving?1+Math.abs(step)*0.05:1;
+  drop(P.x, P.y+9, 6.5, 2.6);
+  ctx.save(); ctx.translate(P.x,P.y); ctx.scale(1/squash, squash);
+  paintHero(P.dir, step, (T%230)<9, 'walk');
+  ctx.restore();
+}
+
+function drawFlyingCow(){
+  if(!flyCow.active) return;
+  ctx.save();
+  ctx.translate(flyCow.x, flyCow.y+Math.sin(flyCow.t/26)*10);
+  ctx.scale(2.1,2.1);
+  const flap=Math.sin(flyCow.t/6);
+  const wingUp   = 0.7 + Math.max(0, flap)*3.2;      // always positive
+  const wingDown = 0.7 + Math.max(0,-flap)*3.2;
+  ctx.fillStyle='rgba(255,255,255,.92)';
+  ell(-7,-1,5.5,wingUp);   ctx.fill(); ink(1.2);
+  ell( 7,-1,5.5,wingDown); ctx.fill(); ink(1.2);
+  blob(0,0,9,6.2,C.cow,1.6);
+  ctx.save(); ell(0,0,9,6.2); ctx.clip();
+  blob(-3.4,-1.4,3.0,2.2,C.spot,false); blob(3.2,1.8,2.4,1.8,C.spot,false);
+  ctx.restore();
+  blob(8.4,-1.6,4.2,3.8,C.cow,1.5);
+  blob(10.0,0,2.4,1.9,C.snout,1.2);
+  blob(9.4,-2.8,0.9,1.0,C.ink,false);
+  rr(-4,3.6,2.6,4,1.2); fill(C.cowDk); ink(1.2);
+  rr( 2,3.6,2.6,4,1.2); fill(C.cowDk); ink(1.2);
+  ctx.restore();
+}
+
+function drawMinimap(){
+  mmx.clearRect(0,0,mm.width,mm.height);
+  const sx=mm.width/W, sy=mm.height/H;
+  mmx.fillStyle='#7cc555'; mmx.fillRect(0,0,mm.width,mm.height);
+  mmx.fillStyle='#4ec8e8';
+  mmx.beginPath();
+  mmx.ellipse(POND.cx*TILE*sx, POND.cy*TILE*sy, POND.rx*TILE*sx, POND.ry*TILE*sy,0,0,6.3);
+  mmx.fill();
+  for(const b of BUILDINGS){
+    mmx.fillStyle=(b===insideB)? shade(b.roof,.18) : b.roof;
+    mmx.fillRect(b.x*TILE*sx, b.y*TILE*sy, b.w*TILE*sx, b.h*TILE*sy);
+  }
+  for(const o of objs){
+    mmx.fillStyle = o.seen ? 'rgba(51,36,28,.45)' : '#fff45c';
+    mmx.beginPath(); mmx.arc(o.x*sx, o.y*sy, o.seen?1.4:2.2, 0, 6.3); mmx.fill();
+  }
+  mmx.fillStyle='#fff'; mmx.beginPath(); mmx.arc(mother.x*sx, mother.y*sy, 1.4,0,6.3); mmx.fill();
+  mmx.fillStyle='#e8563f'; mmx.strokeStyle='#fff'; mmx.lineWidth=1.4;
+  mmx.beginPath(); mmx.arc(P.x*sx, P.y*sy, 3,0,6.3); mmx.fill(); mmx.stroke();
+}
+
+/* the ground never changes, so it is painted once into an offscreen map */
+const groundCv = document.createElement('canvas');
+groundCv.width = W; groundCv.height = H;
+(function bakeGround(){
+  const g = groundCv.getContext('2d');
+  const o = ctx; ctx = g;
+  drawTerrain(0,0,MAP_W,MAP_H);
+  ctx = o;
+})();
+
+function render(){
+  T++;
+  renderWater();
+  ctx.fillStyle='#8fd465'; ctx.fillRect(0,0,innerWidth,innerHeight);
+  ctx.save();
+  ctx.imageSmoothingEnabled = false;
+  ctx.scale(ZOOM,ZOOM);
+  const cx=camX, cy=camY;
+  ctx.translate(-cx,-cy);
+
+  const vw=innerWidth/ZOOM, vh=innerHeight/ZOOM;
+  const x0=Math.max(0,Math.floor(cx/TILE)-1), y0=Math.max(0,Math.floor(cy/TILE)-1);
+  const x1=Math.min(MAP_W,Math.ceil((cx+vw)/TILE)+1), y1=Math.min(MAP_H,Math.ceil((cy+vh)/TILE)+1);
+
+  const bx=x0*TILE, by=y0*TILE, bw=(x1-x0)*TILE, bh=(y1-y0)*TILE;
+  ctx.drawImage(groundCv, bx,by,bw,bh, bx,by,bw,bh);
+  ctx.drawImage(wcv, 0,0,WPW,WPH, WX0*TILE, WY0*TILE, WPW*WSC, WPH*WSC);
+  BUILDINGS.forEach(drawFacade);
+
+  const d=[];
+  for(const t of TREES){
+    if(t.x<bx-24||t.x>bx+bw+24||t.y<by-30||t.y>by+bh+24) continue;
+    d.push({z:t.y+15, f:()=>drawTree(t)});
+  }
+  for(const o of objs){
+    if(o.home && o.home.a>0.85) continue;
+    d.push({z:o.y+o.ph, f:()=>drawObj(o)});
+  }
+  for(const p of PROPS) d.push({z:p.y+16, f:()=>drawProp(p)});
+  for(const r of REEDS){
+    if(r.x<cx-20||r.x>cx+vw+20||r.y<cy-40||r.y>cy+vh+20) continue;   // cull offscreen
+    d.push({z:r.y, f:()=>drawReed(r)});
+  }
+  for(const c of cows)  d.push({z:c.y+7,  f:()=>drawCow(c)});
+  d.push({z:mother.y+4, f:()=>{ ducklings.forEach(k=>drawDuck(k,false)); drawDuck(mother,true); }});
+  for(const b of BUILDINGS) d.push({z:(b.y+b.h-1)*TILE, f:()=>drawRoof(b)});
+  d.push({z:P.y+6, f:drawPlayer});
+  d.sort((a,b)=>a.z-b.z).forEach(k=>k.f());
+
+  /* bouncing arrows over doors you haven't opened */
+  for(const b of BUILDINGS){
+    if(b._entered) continue;
+    const dx=b.door*TILE+TILE/2, fy=(b.y+b.h-1)*TILE;
+    const bob=Math.sin(T/14+b.x)*2.2;
+    ctx.save(); ctx.translate(dx, fy-20+bob);
+    ctx.beginPath();
+    ctx.moveTo(-4.5,-4); ctx.lineTo(4.5,-4); ctx.lineTo(0,4); ctx.closePath();
+    fill('#ffd23f'); ink(1.5);
+    ctx.restore();
+  }
+
+  drawButterflies();
+  drawCloudShadows(cx, cy, vw, vh);
+  ctx.restore();
+  drawFlyingCow();
+  drawMinimap();
+}
+
+/* the little guy in the panel header — same art as the world sprite */
+const avCv = document.getElementById('avatar');
+const avCtx = avCv.getContext('2d');
+let avT = 0;
+function drawAvatar(){
+  avT++;
+  const o = ctx; ctx = avCtx;
+  ctx.setTransform(1,0,0,1,0,0);
+  ctx.clearRect(0,0,200,200);
+  ctx.save();
+  ctx.translate(100, 140);
+  ctx.scale(5.3, 5.3);
+
+  const bob   = Math.sin(avT/26)*0.5;
+  const sway  = Math.sin(avT/38)*0.05;
+  const blink = (avT%190)<9;
+  /* when he has nothing to demonstrate he just waves now and then */
+  let pose = avatarPose;
+  if(pose==='idle') pose = (avT%420) > 380 ? 'wave' : 'wave2';
+
+  ctx.translate(0, bob); ctx.rotate(sway);
+  drop(0, 9.5, 6.2, 2.2, .16);
+  if(pose==='wave2') paintHero(2, 0, blink, 'nothing', avT);
+  else               paintHero(2, 0, blink, pose, avT);
+  ctx.restore();
+  ctx = o;
+}
+
+function loop(){
+  update();
+  render();
+  if(modal.classList.contains('on')) drawAvatar();
+  requestAnimationFrame(loop);
+}
+
+/* ==================================================================
+   4.  UI
+   ================================================================== */
+const modal = document.getElementById('modal');
+
+/* which little performance he gives in each panel */
+const POSE_BY_ID = {
+  about:'wave',
+  c1:'controller', c2:'controller', c3:'controller', c4:'controller', c5:'controller',
+  m1:'controller', m2:'controller', m3:'controller', m4:'controller',
+  systems:'laptop', craft:'wrench', exp:'marker', side:'trophy',
+  xr:'vr', ar:'tablet', brand:'tablet', contact:'envelope', cow:'wave'
+};
+let avatarPose = 'idle';
+function openModal(title, tag, html, pose){
+  avatarPose = pose || 'idle'; avT = 0;
+  document.getElementById('mTitle').textContent=title;
+  document.getElementById('mTag').textContent=tag||'';
+  document.getElementById('mBody').innerHTML=html;
+  modal.classList.add('on'); blip(660);
+}
+function closeModal(){ modal.classList.remove('on'); }
+modal.addEventListener('click', e=>{ if(e.target===modal) closeModal(); });
+
+let toastTimer=null;
+function toast(msg){
+  const t=document.getElementById('toast');
+  t.textContent=msg; t.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>t.classList.remove('on'), 1900);
+}
+
+function tryInteract(){
+  if(modal.classList.contains('on')){ closeModal(); return; }
+  if(document.getElementById('intro').style.display!=='none') return;
+  if(!near) return;
+  const first = !near.seen;
+  near.seen=true; updateFound();
+  if(first) track('panel:'+near.id);
+  openModal(near.title, near.tag, near.html, POSE_BY_ID[near.id]);
+}
+function updateFound(){
+  const total=objs.filter(o=>!o.secret).length;
+  const got=objs.filter(o=>!o.secret&&o.seen).length;
+  const el=document.getElementById('found');
+  el.textContent=`Discovered ${got} / ${total}` + (got===total?'  ✓ all found':'');
+  if(got===total && !updateFound._done){ updateFound._done=true; track('found-everything'); }
+  if(got===total) el.style.color='var(--good)';
+}
+
+/* the contact form composes a mailto: — no backend, nothing leaves the browser */
+const CONTACT_EMAIL = 'hiqbal285@gmail.com';
+function sendMail(e){
+  if(e) e.preventDefault();
+  const subj = (document.getElementById('cSubject')||{}).value || '';
+  const body = (document.getElementById('cBody')||{}).value || '';
+  const url = 'mailto:' + CONTACT_EMAIL +
+              '?subject=' + encodeURIComponent(subj || 'Hello from your portfolio') +
+              '&body=' + encodeURIComponent(body);
+  window.location.href = url;
+  track('contact:compose');
+  blip(760);
+}
+function copyEmail(btn){
+  const done = ()=>{ const t=btn.textContent; btn.textContent='Copied ✓';
+                     setTimeout(()=>btn.textContent=t, 1600); blip(880); };
+  if(navigator.clipboard && navigator.clipboard.writeText){
+    navigator.clipboard.writeText(CONTACT_EMAIL).then(done).catch(()=>fallback());
+  } else fallback();
+  function fallback(){
+    const ta=document.createElement('textarea');
+    ta.value=CONTACT_EMAIL; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); done(); }catch(err){ btn.textContent=CONTACT_EMAIL; }
+    document.body.removeChild(ta);
+  }
+}
+
+let audio=null, soundOn=true;
+function blip(freq){
+  if(!soundOn) return;
+  try{
+    audio = audio || new (window.AudioContext||window.webkitAudioContext)();
+    const o=audio.createOscillator(), g=audio.createGain();
+    o.type='square'; o.frequency.value=freq; g.gain.value=0.03;
+    o.connect(g); g.connect(audio.destination); o.start();
+    g.gain.exponentialRampToValueAtTime(0.0001, audio.currentTime+0.12);
+    o.stop(audio.currentTime+0.13);
+  }catch(e){}
+}
+
+function buildClassic(){
+  document.getElementById('cName').textContent=CONTENT.name;
+  document.getElementById('cRole').textContent=CONTENT.role;
+  document.getElementById('cBlurb').textContent=CONTENT.blurb;
+  const host=document.getElementById('cSections'); host.innerHTML='';
+  CONTENT.objects.filter(o=>!o.secret).forEach(o=>{
+    const s=document.createElement('section'); s.className='sec';
+    s.innerHTML=`<h2>${o.title}</h2><div class="card-body">${o.html}</div>`;
+    host.appendChild(s);
+  });
+}
+function toggleClassic(force){
+  const c=document.getElementById('classic');
+  const on = force!==undefined ? force : !c.classList.contains('on');
+  c.classList.toggle('on', on);
+  document.getElementById('hud').style.display = on ? 'none' : 'block';
+  if(on){ closeModal(); document.getElementById('intro').style.display='none'; c.scrollTop=0;
+          track('skip-to-plain-version'); }
+}
+
+document.getElementById('whoami').textContent    = CONTENT.name;
+document.getElementById('introName').textContent = CONTENT.name;
+document.getElementById('introSub').textContent  = CONTENT.tagline;
+document.getElementById('btnClassic').onclick    = ()=>toggleClassic(true);
+document.getElementById('lnkClassic').onclick    = e=>{e.preventDefault(); toggleClassic(true);};
+document.getElementById('btnBackGame').onclick   = ()=>toggleClassic(false);
+document.getElementById('btnSound').onclick      = e=>{ soundOn=!soundOn; e.target.textContent=soundOn?'♪ on':'♪ off'; };
+document.getElementById('btnHelp').onclick       = ()=>openModal('How to explore','controls',
+  `<ul>
+     <li><b>Move</b> — WASD or arrow keys (drag the on-screen stick on mobile)</li>
+     <li><b>Go inside</b> — walk through a lit doorway; the roof lifts off</li>
+     <li><b>Interact</b> — stand by something glowing and press <b>E</b> / <b>Space</b></li>
+     <li><b>Close</b> — <b>Esc</b>, or click outside the panel</li>
+     <li><b>Plain version</b> — press <b>M</b> or hit "Skip the game"</li>
+   </ul>
+   <p>Eight buildings, ${objs.filter(o=>!o.secret).length} things to find, one duck family,
+   five cows, and something that isn't counted.</p>`, 'wave');
+const spd=document.getElementById('spd'), spdVal=document.getElementById('spdVal');
+function setSpeed(v){ P.speed=parseFloat(v); spdVal.textContent=P.speed.toFixed(1)+'\u00d7'; }
+spd.addEventListener('input', e=>setSpeed(e.target.value));
+setSpeed(spd.value);
+/* keep the keyboard on the game, not the slider */
+spd.addEventListener('keydown', e=>e.preventDefault());
+spd.addEventListener('change', ()=>spd.blur());
+
+document.getElementById('btnStart').onclick = ()=>{
+  document.getElementById('intro').style.display='none';
+  toast('Walk through a doorway to go inside'); blip(880);
+  track('start-playing');
+};
+
+const stick=document.getElementById('stick'), nub=document.getElementById('nub');
+let stickId=null, sc={x:0,y:0};
+stick.addEventListener('touchstart', e=>{
+  const t=e.changedTouches[0]; stickId=t.identifier;
+  const r=stick.getBoundingClientRect(); sc={x:r.left+r.width/2,y:r.top+r.height/2};
+  stickMove(e);
+}, {passive:true});
+function stickMove(e){
+  for(const t of e.changedTouches){
+    if(t.identifier!==stickId) continue;
+    let dx=t.clientX-sc.x, dy=t.clientY-sc.y;
+    const d=Math.hypot(dx,dy), max=46;
+    if(d>max){ dx=dx/d*max; dy=dy/d*max; }
+    nub.style.transform=`translate(${dx}px,${dy}px)`;
+    touchVec={x:dx/max, y:dy/max};
+  }
+}
+function stickEnd(e){
+  for(const t of e.changedTouches){
+    if(t.identifier!==stickId) continue;
+    stickId=null; touchVec={x:0,y:0}; nub.style.transform='';
+  }
+}
+addEventListener('touchmove', stickMove, {passive:true});
+addEventListener('touchend', stickEnd, {passive:true});
+addEventListener('touchcancel', stickEnd, {passive:true});
+document.getElementById('abtn').addEventListener('click', tryInteract);
+
+buildClassic();
+updateFound();
+resize();
+loop();
+</script>
+</body>
+</html>
