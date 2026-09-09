@@ -1870,33 +1870,95 @@ function drawButterflies(){
   }
 }
 
-/* slow cloud shadows drifting over the fields */
+/* Slow cloud shadows drifting over the fields.
+   Each one is a clump of overlapping discs rather than an ellipse, so the
+   outline is lumpy and torn the way a real cloud's shadow is. All the discs
+   go into a single path and get one fill, so overlaps don't darken. */
 const clouds = [];
-for(let i=0;i<6;i++) clouds.push({x:Math.random()*W, y:Math.random()*H, r:60+Math.random()*70, s:0.10+Math.random()*0.09});
+(function seedClouds(){
+  let seed = 20260909;
+  const rnd = ()=>{ seed = (seed*1103515245 + 12345) & 0x7fffffff; return seed/0x7fffffff; };
+  for(let i=0;i<6;i++){
+    const w = 78 + rnd()*66;              // half-width of the clump
+    const h = w * (0.40 + rnd()*0.16);    // clouds are wider than they are tall
+    const lobes = [];
+    /* a few fat lobes through the middle */
+    const core = 3 + (rnd()*3|0);
+    for(let k=0;k<core;k++){
+      lobes.push({
+        dx: (rnd()-0.5)*w*1.15,
+        dy: (rnd()-0.5)*h*0.75,
+        r : h*(0.62 + rnd()*0.42),
+        ph: rnd()*6.283
+      });
+    }
+    /* a dense ring of small, jittered lobes chews the edge into something torn */
+    const rim = 30 + (rnd()*14|0);
+    for(let k=0;k<rim;k++){
+      const a2 = (k/rim)*6.283 + (rnd()-0.5)*0.30;
+      const push = 0.74 + rnd()*0.30;
+      lobes.push({
+        dx: Math.cos(a2)*w*push,
+        dy: Math.sin(a2)*h*push,
+        r : h*(0.10 + rnd()*rnd()*0.34),   // squared random: mostly small, a few bigger
+        ph: rnd()*6.283
+      });
+    }
+    /* a handful of wisps hanging off the edge */
+    const wisps = 5 + (rnd()*5|0);
+    for(let k=0;k<wisps;k++){
+      const a2 = rnd()*6.283;
+      const push = 1.02 + rnd()*0.22;
+      lobes.push({
+        dx: Math.cos(a2)*w*push,
+        dy: Math.sin(a2)*h*push,
+        r : h*(0.07 + rnd()*0.13),
+        ph: rnd()*6.283
+      });
+    }
+    clouds.push({
+      x: rnd()*W, y: rnd()*H,
+      s: 0.09 + rnd()*0.10,
+      w, h, lobes
+    });
+  }
+})();
+
 function drawCloudShadows(vx,vy,vw,vh){
-  for(const c of clouds){ c.x += c.s; if(c.x-c.r>W){ c.x=-c.r; c.y=Math.random()*H; } }
+  for(const c of clouds){
+    c.x += c.s;
+    if(c.x - c.w*1.6 > W){ c.x = -c.w*1.6; c.y = Math.random()*H; }
+  }
   ctx.save();
   /* punch the open houses out of the shadow layer: a roof blocks the sun */
   ctx.beginPath();
   ctx.rect(vx-8, vy-8, vw+16, vh+16);
   for(const b of BUILDINGS){
-    if(b.a > 0.9) continue;                       // roof still on: shadow falls on it
+    if(b.a > 0.9) continue;
     ctx.rect(b.x*TILE, b.y*TILE, b.w*TILE, b.h*TILE);
   }
   ctx.clip('evenodd');
+
   ctx.fillStyle='rgba(38,58,32,.13)';
   for(const c of clouds){
-    ell(c.x, c.y, c.r, c.r*0.52); ctx.fill();
-    ell(c.x+c.r*0.5, c.y+c.r*0.16, c.r*0.6, c.r*0.34); ctx.fill();
+    if(c.x + c.w*1.7 < vx || c.x - c.w*1.7 > vx+vw) continue;
+    if(c.y + c.h*2.2 < vy || c.y - c.h*2.2 > vy+vh) continue;
+    ctx.beginPath();
+    for(let i=0;i<c.lobes.length;i++){
+      const L = c.lobes[i];
+      /* each lobe breathes a little, so the outline keeps shifting */
+      const wob = Math.sin(T*0.008 + L.ph)*2.4;
+      const lx = c.x + L.dx + wob;
+      const ly = c.y + L.dy + Math.cos(T*0.005 + L.ph)*1.1;
+      const lr = L.r + wob*0.35;
+      ctx.moveTo(lx + lr, ly);
+      ctx.arc(lx, ly, lr < 0.5 ? 0.5 : lr, 0, 6.2832);
+    }
+    ctx.fill();
   }
   ctx.restore();
 }
 
-/* ------------------------------------------------------------------
-   The hero, cartoonised from the reference photo: volume of dark hair
-   swept up and back, round wire glasses, dark polo with a white collar.
-   `pose` swaps the arms and whatever he is holding.
-   ------------------------------------------------------------------ */
 function paintHero(dir, step, blink, pose, t){
   pose = pose || 'walk'; t = t || 0;
   const front = dir===2 || pose!=='walk';
