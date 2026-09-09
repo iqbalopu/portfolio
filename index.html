@@ -82,14 +82,17 @@
 
   #touch{position:absolute; inset:0; display:none; pointer-events:none}
   #stick{position:absolute; left:26px; bottom:26px; width:124px; height:124px;
-         border:4px solid rgba(51,36,28,.75); border-radius:50%; background:rgba(255,246,226,.45);}
+         border:4px solid rgba(51,36,28,.75); border-radius:50%;
+         background:rgba(255,246,226,.45); pointer-events:auto;
+         transition:opacity .18s ease; opacity:.55;}
+  #stick.live{opacity:1}
   #nub{position:absolute; left:50%; top:50%; width:52px; height:52px; margin:-26px 0 0 -26px;
        border-radius:50%; background:#fff6e2; border:4px solid #33241c;}
   #abtn{position:absolute; right:30px; bottom:44px; width:84px; height:84px; border-radius:50%;
         background:#ffd23f; border:4px solid #33241c; color:#33241c; font-weight:700;
         box-shadow:0 4px 0 #33241c; font-family:var(--font); font-size:15px; pointer-events:auto;}
 
-  #modal{position:fixed; inset:0; z-index:20; display:none; background:rgba(5,8,12,.74);
+  #modal{position:fixed; inset:0; z-index:20; display:none; touch-action:pan-y; -webkit-overflow-scrolling:touch; background:rgba(5,8,12,.74);
          padding:20px; overflow:auto; -webkit-backdrop-filter:blur(2px); backdrop-filter:blur(2px);}
   #modal.on{display:flex; align-items:center; justify-content:center}
   .card{width:min(720px,100%); background:var(--panel); border:4px solid #33241c; border-radius:14px;
@@ -101,7 +104,7 @@
           background:radial-gradient(circle at 50% 38%, #ffe081 0%, #ffd23f 62%, #f0b429 100%);}
   .card-head h2{margin:0; font-size:18px; letter-spacing:.04em; color:var(--accent)}
   .card-head .tag{font-size:11px; color:var(--ink-dim); margin-left:auto; text-align:right}
-  .card-body{padding:16px; overflow:auto; font-size:13.5px; line-height:1.75}
+  .card-body{padding:16px; overflow:auto; touch-action:pan-y; -webkit-overflow-scrolling:touch; font-size:13.5px; line-height:1.75}
   .card-body h3{font-size:13px; color:var(--accent-2); margin:20px 0 6px; letter-spacing:.05em}
   .card-body h3:first-child{margin-top:0}
   .card-body p{margin:0 0 12px}
@@ -149,7 +152,7 @@
   .quiet{font-size:11.5px; color:#e8f7d8; margin-top:16px}
   .quiet a{color:#fff}
 
-  #classic{position:fixed; inset:0; z-index:25; display:none; overflow:auto;
+  #classic{position:fixed; inset:0; z-index:25; display:none; overflow:auto; touch-action:pan-y; -webkit-overflow-scrolling:touch;
            background:var(--bg); padding:0 20px 80px;}
   #classic.on{display:block}
   .wrap{max-width:760px; margin:0 auto}
@@ -2462,33 +2465,103 @@ document.getElementById('btnStart').onclick = ()=>{
   track('start-playing');
 };
 
-const stick=document.getElementById('stick'), nub=document.getElementById('nub');
-let stickId=null, sc={x:0,y:0};
-stick.addEventListener('touchstart', e=>{
-  const t=e.changedTouches[0]; stickId=t.identifier;
-  const r=stick.getBoundingClientRect(); sc={x:r.left+r.width/2,y:r.top+r.height/2};
-  stickMove(e);
+/* ------------------------------------------------------------------
+   Touch controls.
+
+   The stick is "floating": put a finger down anywhere on the left side of
+   the screen and the stick jumps to that spot, so you never have to look
+   for it. Touches are tracked by identifier, so you can steer and tap LOOK
+   at the same time.
+   ------------------------------------------------------------------ */
+const stick = document.getElementById('stick');
+const nub   = document.getElementById('nub');
+const abtn  = document.getElementById('abtn');
+const STICK_MAX = 46;
+let stickId = null, sc = {x:0, y:0}, homeStick = true;
+
+function isUiTarget(t){
+  return !!(t && t.closest && t.closest('button, a, input, textarea, select, #modal, #classic'));
+}
+function placeStick(x, y){
+  stick.style.left = (x - 62) + 'px';
+  stick.style.top  = (y - 62) + 'px';
+  stick.style.bottom = 'auto';
+  stick.classList.add('live');
+  homeStick = false;
+}
+function restStick(){
+  stick.style.left = '26px';
+  stick.style.top = 'auto';
+  stick.style.bottom = '26px';
+  stick.classList.remove('live');
+  nub.style.transform = '';
+  homeStick = true;
+}
+function applyStick(t){
+  let dx = t.clientX - sc.x, dy = t.clientY - sc.y;
+  const d = Math.hypot(dx, dy);
+  if(d > STICK_MAX){ dx = dx/d*STICK_MAX; dy = dy/d*STICK_MAX; }
+  nub.style.transform = `translate(${dx}px,${dy}px)`;
+  touchVec = {x: dx/STICK_MAX, y: dy/STICK_MAX};
+}
+
+addEventListener('touchstart', e=>{
+  if(!matchMedia('(pointer:coarse)').matches) return;
+  for(const t of e.changedTouches){
+    if(isUiTarget(t.target)) continue;                 // buttons and panels keep their taps
+    if(stickId !== null) continue;
+    if(t.clientX > innerWidth*0.58) continue;          // right side is for LOOK
+    if(t.clientY < 96) continue;                       // keep clear of the HUD
+    stickId = t.identifier;
+    placeStick(t.clientX, t.clientY);
+    sc = {x: t.clientX, y: t.clientY};
+    applyStick(t);
+  }
 }, {passive:true});
-function stickMove(e){
+
+addEventListener('touchmove', e=>{
+  if(stickId === null) return;
   for(const t of e.changedTouches){
-    if(t.identifier!==stickId) continue;
-    let dx=t.clientX-sc.x, dy=t.clientY-sc.y;
-    const d=Math.hypot(dx,dy), max=46;
-    if(d>max){ dx=dx/d*max; dy=dy/d*max; }
-    nub.style.transform=`translate(${dx}px,${dy}px)`;
-    touchVec={x:dx/max, y:dy/max};
+    if(t.identifier !== stickId) continue;
+    applyStick(t);
+  }
+}, {passive:true});
+
+function endStick(e){
+  if(stickId === null) return;
+  for(const t of e.changedTouches){
+    if(t.identifier !== stickId) continue;
+    stickId = null;
+    touchVec = {x:0, y:0};
+    restStick();
   }
 }
-function stickEnd(e){
-  for(const t of e.changedTouches){
-    if(t.identifier!==stickId) continue;
-    stickId=null; touchVec={x:0,y:0}; nub.style.transform='';
-  }
+addEventListener('touchend', endStick, {passive:true});
+addEventListener('touchcancel', endStick, {passive:true});
+
+/* LOOK: fire on touchstart so it feels instant, and don't let the same tap
+   also count as a click afterwards. */
+let lookLock = 0;
+function pressLook(e){
+  if(e){ e.preventDefault(); e.stopPropagation(); }
+  const now = Date.now();
+  if(now - lookLock < 250) return;
+  lookLock = now;
+  abtn.style.transform = 'translateY(3px)';
+  setTimeout(()=>{ abtn.style.transform=''; }, 120);
+  if(navigator.vibrate) { try{ navigator.vibrate(12); }catch(err){} }
+  tryInteract();
 }
-addEventListener('touchmove', stickMove, {passive:true});
-addEventListener('touchend', stickEnd, {passive:true});
-addEventListener('touchcancel', stickEnd, {passive:true});
-document.getElementById('abtn').addEventListener('click', tryInteract);
+abtn.addEventListener('touchstart', pressLook, {passive:false});
+abtn.addEventListener('click', e=>{
+  if(Date.now() - lookLock < 400) return;   // already handled by the touch
+  pressLook(e);
+});
+
+/* tapping the dimmed area outside a panel closes it on touch too */
+modal.addEventListener('touchstart', e=>{
+  if(e.target === modal) closeModal();
+}, {passive:true});
 
 buildClassic();
 updateFound();
