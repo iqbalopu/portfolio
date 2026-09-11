@@ -56,11 +56,12 @@
        border:3px solid #33241c; cursor:grab}
   #spd::-moz-range-track{background:transparent}
   .hud-btns{display:flex; gap:8px; pointer-events:auto; flex-wrap:wrap; justify-content:flex-end}
-  button.k{font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer;
+  button.k, a.k{font-family:var(--font); font-size:12px; font-weight:700; cursor:pointer;
            background:#fff6e2; color:#33241c; border:3px solid #33241c; border-radius:9px;
            padding:7px 11px; box-shadow:0 3px 0 #33241c;}
-  button.k:hover{background:#ffd23f}
-  button.k:active{transform:translateY(3px); box-shadow:none}
+  a.k{text-decoration:none; display:inline-block; line-height:1.4}
+  button.k:hover, a.k:hover{background:#ffd23f}
+  button.k:active, a.k:active{transform:translateY(3px); box-shadow:none}
 
   #prompt{position:absolute; left:50%; bottom:100px; transform:translateX(-50%);
           background:#ffd23f; border:3px solid #33241c; border-radius:10px; color:#33241c;
@@ -168,7 +169,7 @@
 
   /* --- small screens: keep the minimap clear of the LOOK button --- */
   @media (max-width:600px), (pointer:coarse){
-    button.k{font-size:11px; padding:7px 9px}
+    button.k, a.k{font-size:11px; padding:7px 9px}
     #minimap{width:104px; height:72px; bottom:auto; top:150px; right:10px}
     #spd{width:110px}
     #avatar{width:72px; height:72px; flex:0 0 72px; margin:0}
@@ -197,6 +198,7 @@
       </div>
     </div>
     <div class="hud-btns">
+      <a class="k" href="play/">🕹 Arcade</a>
       <button class="k" id="btnClassic">Skip the game →</button>
       <button class="k" id="btnHelp">?</button>
       <button class="k" id="btnSound">♪ on</button>
@@ -485,6 +487,30 @@ const CONTENT = {
           <li><b>Word Search</b></li>
           <li><b>Liar's Dice</b> — Unity client with a dedicated multiplayer server</li>
         </ul>`
+    },
+
+    {
+      id:"play", kind:"arcade", tile:[42,6], w:2, h:3, label:"Play in browser", accent:"#7ee787",
+      title:"Playable \u2014 right here", tag:"indie \u00b7 vanilla JS \u00b7 no install",
+      html:`
+        <h3>Games you can play in this browser</h3>
+        <p>The cabinets either side of this one are competitive titles built with a team.
+        These are the opposite: small one-input games I write on my own, each one a single
+        HTML file that generates its own sound and art at runtime. No engine, no asset
+        files, nothing to download.</p>
+        <p><b><a href="play/">Open the arcade &rarr;</a></b></p>
+        <ul>
+          <li><b><a href="play/slinger.html">Jetpack Slinger</a></b> &mdash; hold to hook a pole,
+          release at the top of the swing, climb. Also on Google Play.</li>
+          <li><b><a href="play/perigee.html">Perigee</a></b> &mdash; hold to orbit a planet,
+          let go to sling. Also on Google Play.</li>
+          <li><b><a href="play/cargo.html">Cargo Loop</a></b> &mdash; feed crates onto a belt and
+          flip switches to route them. A prototype.</li>
+          <li><b><a href="play/lumen.html">Lumen Relay</a></b> &mdash; bend a beam through mirrors
+          into every crystal. A prototype.</li>
+        </ul>
+        <p>All four run on a phone as well as a desktop, which is the whole point of the
+        one-input rule: the entire game has to survive being played with one thumb.</p>`
     },
 
     /* ================= MULTIPLAYER & LIVE SERVICE ================= */
