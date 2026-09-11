@@ -22,12 +22,19 @@
      margin:38px 0 12px;color:var(--ink-2)}
   .lede{color:var(--ink-2);margin:0 0 28px}
   .meta{font-family:var(--mono);font-size:13px;color:var(--ink-dim);margin:0 0 26px}
-  .card{display:block;text-decoration:none;color:inherit;background:var(--paper-2);
-    border:3px solid var(--ink);border-radius:12px;box-shadow:0 4px 0 var(--ink);
-    padding:18px 20px;margin:0 0 22px}
-  .card:hover{transform:translateY(1px);box-shadow:0 3px 0 var(--ink)}
+  /* The card is not itself a link: the store links inside it are real links,
+     and an anchor inside an anchor is not. */
+  .card{background:var(--paper-2);border:3px solid var(--ink);border-radius:12px;
+    box-shadow:0 4px 0 var(--ink);padding:18px 20px;margin:0 0 22px}
+  .card-main{display:block;text-decoration:none;color:inherit}
+  .card-main:hover h3{color:var(--accent)}
   .card h3{font-family:var(--mono);font-size:17px;margin:0 0 6px}
   .card p{margin:0;color:var(--ink-2);font-size:17px}
+  .stores{display:flex;flex-wrap:wrap;gap:8px;margin:14px 0 0}
+  .stores a{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--ink);
+    text-decoration:none;background:var(--paper);border:2px solid var(--ink);
+    border-radius:7px;padding:4px 9px;box-shadow:0 2px 0 var(--ink)}
+  .stores a:hover{background:var(--gold)}
   .tag{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.08em;
     text-transform:uppercase;color:var(--accent);display:block;margin-bottom:8px}
   /* The frame has to match the game's own orientation. A landscape game in a
@@ -61,26 +68,36 @@
   <p class="lede">These run in the page. No install, no account, nothing to download —
   each one is a single HTML file that generates its own sound and art at runtime.</p>
 
-  <a class="card" href="cargo.html">
-    <span class="tag">phone &amp; desktop · 75 KB</span>
-    <h3>Cargo Loop</h3>
-    <p>Release cargo onto a loop, flip switches to route it to the right truck.</p>
-  </a>
-  <a class="card" href="lumen.html">
-    <span class="tag">phone &amp; desktop · 38 KB</span>
-    <h3>Lumen Relay</h3>
-    <p>Tap mirrors to bend light into the crystals, without touching a bomb.</p>
-  </a>
-  <a class="card" href="perigee.html">
-    <span class="tag">phone &amp; desktop · 100 KB</span>
-    <h3>Perigee</h3>
-    <p>Hold to orbit a planet, let go to sling. Endless gravity arcade.</p>
-  </a>
-  <a class="card" href="slinger.html">
-    <span class="tag">phone &amp; desktop · 89 KB</span>
-    <h3>Jetpack Slinger</h3>
-    <p>Hold to hook a pole, release at the top of the swing, climb.</p>
-  </a>
+  <div class="card">
+    <a class="card-main" href="cargo.html">
+      <span class="tag">phone &amp; desktop · 75 KB</span>
+      <h3>Cargo Loop</h3>
+      <p>Release cargo onto a loop, flip switches to route it to the right truck.</p>
+    </a>
+  </div>
+  <div class="card">
+    <a class="card-main" href="lumen.html">
+      <span class="tag">phone &amp; desktop · 38 KB</span>
+      <h3>Lumen Relay</h3>
+      <p>Tap mirrors to bend light into the crystals, without touching a bomb.</p>
+    </a>
+  </div>
+  <div class="card">
+    <a class="card-main" href="perigee.html">
+      <span class="tag">phone &amp; desktop · 100 KB</span>
+      <h3>Perigee</h3>
+      <p>Hold to orbit a planet, let go to sling. Endless gravity arcade.</p>
+    </a>
+    <div class="stores"><a href="https://play.google.com/store/apps/details?id=com.iqbalopu.perigee">Google Play &rarr;</a></div>
+  </div>
+  <div class="card">
+    <a class="card-main" href="slinger.html">
+      <span class="tag">phone &amp; desktop · 89 KB</span>
+      <h3>Jetpack Slinger</h3>
+      <p>Hold to hook a pole, release at the top of the swing, climb.</p>
+    </a>
+    <div class="stores"><a href="https://play.google.com/store/apps/details?id=com.iqbalopu.slinger">Google Play &rarr;</a></div>
+  </div>
   <p class="meta">Updated 2026-09-11</p>
 </div>
 </body>
