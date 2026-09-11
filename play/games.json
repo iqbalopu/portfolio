@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-11T20:01:42Z",
+  "generated": "2026-09-12T00:31:44Z",
   "games": [
     {
       "slug": "cargo",
@@ -13,7 +13,7 @@
       "controls": "Tap a pile to feed it. Tap the switch to route. Tap a parked crate to re-send.",
       "orientation": "portrait",
       "engine": "Vanilla JS, one HTML file, no engine",
-      "buildSizeMB": 0.073,
+      "buildSizeMB": 0.074,
       "mobileSupported": true,
       "cover": null,
       "screenshots": [],
@@ -23,7 +23,7 @@
         "appStore": null,
         "source": null
       },
-      "updated": "2026-09-11"
+      "updated": "2026-09-12"
     },
     {
       "slug": "lumen",

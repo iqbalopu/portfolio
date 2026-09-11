@@ -969,10 +969,17 @@ function simTick(sim) {
   if (sim.tick % sim.cfg.ticksPerSlot === 0) simStep(sim);
 
   // The loader: fill, offer the choice, then take it out of the player's hands.
+  //
+  // It stays out of them until the player has acted at least once. Without that
+  // gate a level with a forgiving cargo order simply played itself: thirteen of
+  // the thirty finished with nobody touching anything. The loader exists to
+  // punish stalling mid-level, not to start the level for you. Variant C is the
+  // exception, because crates arriving unbidden is its entire premise.
   const fe = sim.cfg.feedEvery;
   if (fe > 0) {
     if (!sim.ready && sim.tick - sim.lastFeed >= fe) { sim.ready = true; sim.readyAt = sim.tick; }
-    if (sim.ready && sim.tick - sim.readyAt >= fe) simFeed(sim, sim.feedCol);
+    const armed = sim.cfg.autoRelease || sim.log.length > 0;
+    if (armed && sim.ready && sim.tick - sim.readyAt >= fe) simFeed(sim, sim.feedCol);
   }
 
   simWinCheck(sim);
@@ -1097,9 +1104,11 @@ const C = l => Object.assign({ variant: 'C', lanes: 2, switches: ['entry', 'mid'
 
 // ---- A: release only. The proven grammar, and our control. -----------------
 const LEVELS_A = [
-  A({ name: 'One truck',      yard: [['R', 'R']],                bays: [bay(0, 6, ['R', 'R'])] }),
-  A({ name: 'Two colours',    yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 6, ['R', 'B'])] }),
-  A({ name: 'Wrong order',    yard: [['B', 'R'], ['R', 'B']],    bays: [bay(0, 6, ['R', 'R', 'B'])] }),
+  // feedEvery 0 on the first three: they exist to teach "tap a pile to release",
+  // and a loader that feeds on its own teaches the opposite.
+  A({ name: 'One truck',      feedEvery: 0, yard: [['R', 'R']],                bays: [bay(0, 6, ['R', 'R'])] }),
+  A({ name: 'Two colours',    feedEvery: 0, yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 6, ['R', 'B'])] }),
+  A({ name: 'Wrong order',    feedEvery: 0, yard: [['B', 'R'], ['R', 'B']],    bays: [bay(0, 6, ['R', 'R', 'B'])] }),
   A({ name: 'Two trucks',     yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 5, ['R', 'R']), bay(0, 13, ['B', 'B'])] }),
   A({ name: 'Buried need',    yard: [['B', 'B', 'R'], ['R', 'B']], bays: [bay(0, 6, ['R', 'R', 'B', 'B', 'B'])] }),
   A({ name: 'Queue up',       yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 6, ['R', 'B'], ['B', 'R'])] }),
@@ -1118,9 +1127,9 @@ const LEVELS_A = [
 
 // ---- B: release plus routing. The switch arrives at level 4. ---------------
 const LEVELS_B = [
-  B({ name: 'One truck',      lanes: 1, switches: [], yard: [['R', 'R']], bays: [bay(0, 6, ['R', 'R'])] }),
-  B({ name: 'Two colours',    lanes: 1, switches: [], yard: [['R', 'B'], ['B', 'R']], bays: [bay(0, 6, ['R', 'B'])] }),
-  B({ name: 'Wrong order',    lanes: 1, switches: [], yard: [['B', 'R'], ['R', 'B']], bays: [bay(0, 6, ['R', 'R', 'B'])] }),
+  B({ name: 'One truck',      feedEvery: 0, lanes: 1, switches: [], yard: [['R', 'R']], bays: [bay(0, 6, ['R', 'R'])] }),
+  B({ name: 'Two colours',    feedEvery: 0, lanes: 1, switches: [], yard: [['R', 'B'], ['B', 'R']], bays: [bay(0, 6, ['R', 'B'])] }),
+  B({ name: 'Wrong order',    feedEvery: 0, lanes: 1, switches: [], yard: [['B', 'R'], ['R', 'B']], bays: [bay(0, 6, ['R', 'R', 'B'])] }),
   // The switch, taught on the simplest board that needs it: the only truck is
   // in lane B, so a crate sent straight ahead can only lap and park.
   B({ name: 'Flip it',        yard: [['R', 'R']],                bays: [bay(1, 5, ['R', 'R'])] }),
@@ -1141,11 +1150,13 @@ const LEVELS_B = [
 ];
 
 // ---- C: the original brief. Crates arrive on their own; you only route. ----
+// C has no release verb, so its first three levels were B's single-lane boards
+// with the truck already sitting on the lane the switch points at — nothing to
+// do, and they finished on their own. Moving that truck to lane B makes the
+// flip the only way to win, which is the one thing C exists to teach.
 const LEVELS_C = LEVELS_B.map((l, i) => C({
   name: l.name, pads: l.pads, yard: l.yard,
-  // Lane 0 keeps a truck in every level: with no release verb, a crate the
-  // player cannot divert still has to have somewhere to go.
-  bays: l.bays.map(b => ({ lane: b.lane, slot: b.slot, queue: b.queue })),
+  bays: l.bays.map(b => ({ lane: i < 3 ? 1 : b.lane, slot: i < 3 ? 5 : b.slot, queue: b.queue })),
   // C cannot aim, so it gets a slower belt of arrivals than A and B.
   feedEvery: i < 3 ? 90 : 78
 }));
