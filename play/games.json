@@ -1,5 +1,5 @@
 {
-  "generated": "2026-09-11T12:21:27Z",
+  "generated": "2026-09-11T13:49:35Z",
   "games": [
     {
       "slug": "cargo",
@@ -11,6 +11,7 @@
       "webPath": "play/cargo/",
       "embedUrl": null,
       "controls": "Tap a pile to feed it. Tap the switch to route. Tap a parked crate to re-send.",
+      "orientation": "portrait",
       "engine": "Vanilla JS, one HTML file, no engine",
       "buildSizeMB": 0.073,
       "mobileSupported": true,
@@ -34,6 +35,7 @@
       "webPath": "play/lumen/",
       "embedUrl": null,
       "controls": "Tap a mirror to rotate it. Undo, hint and retry are limited.",
+      "orientation": "portrait",
       "engine": "Vanilla JS, one HTML file, no engine",
       "buildSizeMB": 0.037,
       "mobileSupported": true,
@@ -57,6 +59,7 @@
       "webPath": "play/perigee/",
       "embedUrl": null,
       "controls": "Hold to orbit. Release to sling.",
+      "orientation": "landscape",
       "engine": "Vanilla JS, one HTML file, no engine",
       "buildSizeMB": 0.098,
       "mobileSupported": true,
@@ -80,6 +83,7 @@
       "webPath": "play/slinger/",
       "embedUrl": null,
       "controls": "Hold anywhere to hook. Release to fly.",
+      "orientation": "portrait",
       "engine": "Vanilla JS, one HTML file, no engine",
       "buildSizeMB": 0.087,
       "mobileSupported": true,

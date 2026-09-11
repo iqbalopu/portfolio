@@ -30,8 +30,13 @@
   .card p{margin:0;color:var(--ink-2);font-size:17px}
   .tag{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.08em;
     text-transform:uppercase;color:var(--accent);display:block;margin-bottom:8px}
-  .frame{width:100%;aspect-ratio:9/16;max-height:78vh;border:3px solid var(--ink);
-    border-radius:12px;box-shadow:0 4px 0 var(--ink);background:#11161c;display:block}
+  /* The frame has to match the game's own orientation. A landscape game in a
+     portrait frame sees a portrait viewport and correctly asks you to rotate,
+     which on a desktop is impossible and looks broken. */
+  .frame{width:100%;border:3px solid var(--ink);border-radius:12px;
+    box-shadow:0 4px 0 var(--ink);background:#11161c;display:block}
+  .frame.portrait{aspect-ratio:9/16;max-height:78vh;margin:0 auto;max-width:calc(78vh * 9 / 16)}
+  .frame.landscape{aspect-ratio:16/9}
   .row{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 0}
   .row a{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);
     text-decoration:none;background:var(--paper);border:3px solid var(--ink);
@@ -55,7 +60,7 @@
   <h1>Lumen Relay</h1>
   <p class="lede">Tap mirrors to bend light into the crystals, without touching a bomb.</p>
 
-  <iframe class="frame" id="game" src="lumen/" title="Lumen Relay"
+  <iframe class="frame portrait" id="game" src="lumen/" title="Lumen Relay"
           allow="autoplay; fullscreen" loading="lazy"></iframe>
   <div class="note" id="nomobile" hidden>
     <p><b>This one needs a desktop browser.</b> It will not run properly on a phone,
