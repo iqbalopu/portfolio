@@ -1,0 +1,97 @@
+{
+  "generated": "2026-09-11T12:21:27Z",
+  "games": [
+    {
+      "slug": "cargo",
+      "title": "Cargo Loop",
+      "tagline": "Release cargo onto a loop, flip switches to route it to the right truck.",
+      "description": "A prototype. Tap a yard column to feed a crate onto the belt, tap a switch to decide which lane it takes, and tap a parked crate to send it round again once a truck wants it. A full holding dock is a jam. Built to test one question: is deciding where cargo goes better than only deciding which cargo to release?",
+      "status": "playable",
+      "host": "self",
+      "webPath": "play/cargo/",
+      "embedUrl": null,
+      "controls": "Tap a pile to feed it. Tap the switch to route. Tap a parked crate to re-send.",
+      "engine": "Vanilla JS, one HTML file, no engine",
+      "buildSizeMB": 0.073,
+      "mobileSupported": true,
+      "cover": null,
+      "screenshots": [],
+      "links": {
+        "itch": null,
+        "play": null,
+        "appStore": null,
+        "source": null
+      },
+      "updated": "2026-09-11"
+    },
+    {
+      "slug": "lumen",
+      "title": "Lumen Relay",
+      "tagline": "Tap mirrors to bend light into the crystals, without touching a bomb.",
+      "description": "A prototype. A beam leaves an emitter and you rotate mirrors to steer it into every matching receiver inside a move limit. Splitters fork it, tint gates recolour it, and bombs end the level. Every board is generated and then verified: it ships only if it is solvable, has few enough solutions, and a random bot wins it as rarely as that level intends.",
+      "status": "playable",
+      "host": "self",
+      "webPath": "play/lumen/",
+      "embedUrl": null,
+      "controls": "Tap a mirror to rotate it. Undo, hint and retry are limited.",
+      "engine": "Vanilla JS, one HTML file, no engine",
+      "buildSizeMB": 0.037,
+      "mobileSupported": true,
+      "cover": null,
+      "screenshots": [],
+      "links": {
+        "itch": null,
+        "play": null,
+        "appStore": null,
+        "source": null
+      },
+      "updated": "2026-09-11"
+    },
+    {
+      "slug": "perigee",
+      "title": "Perigee",
+      "tagline": "Hold to orbit a planet, let go to sling. Endless gravity arcade.",
+      "description": "The landscape sibling to Jetpack Slinger. Hold to fall into orbit around the nearest planet, release to sling yourself onward. Bounce pads on the rails throw you back into play; everything else on them does not.",
+      "status": "playable",
+      "host": "self",
+      "webPath": "play/perigee/",
+      "embedUrl": null,
+      "controls": "Hold to orbit. Release to sling.",
+      "engine": "Vanilla JS, one HTML file, no engine",
+      "buildSizeMB": 0.098,
+      "mobileSupported": true,
+      "cover": null,
+      "screenshots": [],
+      "links": {
+        "itch": null,
+        "play": "https://play.google.com/store/apps/details?id=com.iqbalopu.perigee",
+        "appStore": null,
+        "source": null
+      },
+      "updated": "2026-09-11"
+    },
+    {
+      "slug": "slinger",
+      "title": "Jetpack Slinger",
+      "tagline": "Hold to hook a pole, release at the top of the swing, climb.",
+      "description": "A one-thumb vertical climber. You get a single jetpack burn to leave the ground; after that every metre is stolen from a swing. Hold anywhere to throw a tether at the nearest pole, let go at the top of the arc, and you fire off in whatever direction you were already going. Release early and you waste it; release late and gravity has already taken it back.",
+      "status": "playable",
+      "host": "self",
+      "webPath": "play/slinger/",
+      "embedUrl": null,
+      "controls": "Hold anywhere to hook. Release to fly.",
+      "engine": "Vanilla JS, one HTML file, no engine",
+      "buildSizeMB": 0.087,
+      "mobileSupported": true,
+      "cover": null,
+      "screenshots": [],
+      "links": {
+        "itch": null,
+        "play": "https://play.google.com/store/apps/details?id=com.iqbalopu.slinger",
+        "appStore": null,
+        "source": null
+      },
+      "updated": "2026-09-11"
+    }
+  ]
+}

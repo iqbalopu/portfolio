@@ -1,0 +1,2785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Perigee</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+<!--
+  PERIGEE — one-input orbital arcade game
+  Vanilla JS + Canvas 2D. Zero external requests. No dependencies.
+
+  PORTAL SUBMISSION NOTES
+  -----------------------
+  Poki:        add <script src="//game-cdn.poki.com/scripts/v2/poki-sdk.js"></script>
+               before this file's script. The Portal wrapper below auto-detects it.
+  CrazyGames:  add <script src="https://sdk.crazygames.com/crazygames-sdk-v3.js"></script>
+               The wrapper auto-detects window.CrazyGames too.
+  Both SDKs are optional — the game runs identically with an ad blocker on,
+  which is a hard Poki requirement.
+-->
+<script>window.__BUILD__ = {"portal":"itch","escPause":true,"devReward":false,"continueUI":"none"};</script>
+</head>
+<body>
+<style>
+  :root {
+    --void-0:  #03050F;
+    --void-1:  #080C2B;
+    --void-2:  #0F1745;
+    --ink:     #F3EDE4;
+    --ink-dim: #9A93B8;
+    --cyan:    #5CE1E6;
+    --violet:  #B47CFF;
+    --amber:   #F2A15C;
+    --rose:    #E8567F;
+    --danger:  #FF4D6D;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--void-0);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+  }
+
+  #stage {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(120% 90% at 50% 8%, var(--void-2) 0%, var(--void-1) 42%, var(--void-0) 100%);
+  }
+
+  canvas {
+    display: block;
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%;
+    height: 100%;
+    touch-action: none;
+  }
+
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* ---------------- overlays ---------------- */
+
+  .layer {
+    position: absolute;
+    inset: 0;
+    display: none;
+    pointer-events: none;
+  }
+  .layer.on { display: block; }
+
+  /* HUD */
+
+  #hud { display: none; }
+  #hud.on {
+    padding: max(18px, calc(env(safe-area-inset-top) + 6px)) max(16px, env(safe-area-inset-right)) 14px max(16px, env(safe-area-inset-left));
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+  .stat { display: flex; flex-direction: column; gap: 2px; }
+  .stat .k {
+    font-size: 9.5px;
+    letter-spacing: .22em;
+    text-transform: uppercase;
+    color: var(--ink-dim);
+    font-weight: 600;
+  }
+  .stat .v {
+    font-size: clamp(21px, 4.4vw, 30px);
+    font-weight: 700;
+    letter-spacing: -.02em;
+    line-height: 1;
+    color: var(--ink);
+    text-shadow: 0 0 18px rgba(92, 225, 230, .35);
+  }
+  .stat.right { align-items: flex-end; }
+  .stat.right .v { color: var(--cyan); font-size: clamp(15px, 3vw, 20px); }
+
+  #combo {
+    position: absolute;
+    top: max(76px, calc(env(safe-area-inset-top) + 62px));
+    left: 0; right: 0;
+    text-align: center;
+    font-size: clamp(15px, 3.4vw, 21px);
+    font-weight: 800;
+    letter-spacing: .08em;
+    color: var(--amber);
+    opacity: 0;
+    transition: opacity .18s ease;
+    text-shadow: 0 0 22px rgba(242, 161, 92, .6);
+  }
+  #combo.on { opacity: 1; }
+
+  #powers {
+    position: absolute;
+    top: max(74px, calc(env(safe-area-inset-top) + 58px));
+    left: max(16px, env(safe-area-inset-left));
+    display: flex; gap: 7px; flex-wrap: wrap;
+  }
+  .pw {
+    position: relative; overflow: hidden;
+    font-size: 9.5px; letter-spacing: .15em; font-weight: 700;
+    padding: 5px 9px 6px; border-radius: 2px;
+    border: 1px solid currentColor;
+    background: rgba(3,5,15,.55);
+  }
+  .pw .bar { position: absolute; left: 0; bottom: 0; height: 2px; background: currentColor; }
+
+  #hint {
+    position: absolute;
+    left: 0; right: 0;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 46px));
+    text-align: center;
+    font-size: clamp(11px, 2.6vw, 13px);
+    letter-spacing: .2em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink-dim);
+    opacity: 0;
+    transition: opacity .4s ease;
+  }
+  #hint.on { opacity: .85; }
+
+  /* Panels */
+
+  .panel {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0;
+    padding: 24px;
+    text-align: center;
+    background: radial-gradient(80% 60% at 50% 50%, rgba(3,5,15,.55) 0%, rgba(3,5,15,.86) 70%);
+    pointer-events: auto;
+    backdrop-filter: blur(2px);
+  }
+
+  .title {
+    font-size: clamp(46px, 15vw, 104px);
+    font-weight: 800;
+    letter-spacing: clamp(6px, 2.6vw, 18px);
+    text-indent: clamp(6px, 2.6vw, 18px);
+    line-height: .95;
+    background: linear-gradient(170deg, var(--cyan) 0%, #A9E9FF 34%, var(--violet) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+    filter: drop-shadow(0 0 34px rgba(140, 190, 255, .34));
+  }
+  .tagline {
+    margin-top: 14px;
+    font-size: clamp(11px, 2.7vw, 13.5px);
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink-dim);
+  }
+
+
+  .btn {
+    margin-top: clamp(28px, 6vw, 40px);
+    appearance: none;
+    border: 1px solid rgba(92, 225, 230, .5);
+    background: linear-gradient(180deg, rgba(92,225,230,.16), rgba(180,124,255,.12));
+    color: var(--ink);
+    font: inherit;
+    font-weight: 700;
+    font-size: clamp(13px, 3.2vw, 15px);
+    letter-spacing: .26em;
+    text-transform: uppercase;
+    padding: 15px 34px 15px 40px;
+    border-radius: 2px;
+    cursor: pointer;
+    transition: background .16s ease, border-color .16s ease, transform .1s ease;
+  }
+  .btn:hover { background: linear-gradient(180deg, rgba(92,225,230,.3), rgba(180,124,255,.2)); border-color: var(--cyan); }
+  .btn:active { transform: translateY(1px); }
+  .btn:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; }
+  .btn.ghost {
+    border-color: rgba(154, 147, 184, .26);
+    background: transparent;
+    color: var(--ink-dim);
+    padding: 9px 20px 9px 24px;
+    font-size: clamp(10px, 2.3vw, 11.5px);
+    letter-spacing: .2em;
+    margin-top: 18px;
+    opacity: .78;
+  }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--ink-dim); background: rgba(255,255,255,.04); opacity: 1; }
+
+  .panel.intro { pointer-events: none; background: radial-gradient(70% 55% at 50% 46%, rgba(3,5,15,.50) 0%, rgba(3,5,15,.80) 72%); }
+
+  .prompt {
+    margin-top: clamp(30px, 7vw, 46px);
+    font-size: clamp(12px, 3vw, 14px);
+    letter-spacing: .3em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--cyan);
+    animation: breathe 1.9s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity: .45 } 50% { opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) { .prompt { animation: none; opacity: .9 } }
+
+  #flag { display: none; }
+  #flag.on { display: block; }
+  #flag.on .flagline { animation: pop .4s cubic-bezier(.2,1.3,.4,1) both; }
+  @keyframes pop { from { transform: scale(.82); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  @media (prefers-reduced-motion: reduce) { #flag.on .flagline { animation: none } }
+
+  .flagline {
+    position: absolute;
+    left: 0; right: 0;
+    top: 34%;
+    text-align: center;
+    font-size: clamp(19px, 5vw, 30px);
+    font-weight: 800;
+    letter-spacing: .2em;
+    color: var(--amber);
+    text-shadow: 0 0 30px rgba(242,161,92,.75);
+  }
+
+  /* Game over */
+
+  .over-label {
+    font-size: clamp(11px, 2.8vw, 13px);
+    letter-spacing: .34em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--danger);
+  }
+  .score-big {
+    margin-top: 10px;
+    font-size: clamp(58px, 17vw, 116px);
+    font-weight: 800;
+    line-height: .92;
+    letter-spacing: -.03em;
+    color: var(--ink);
+    text-shadow: 0 0 46px rgba(92, 225, 230, .3);
+  }
+  .score-sub {
+    margin-top: 12px;
+    display: flex;
+    gap: clamp(20px, 6vw, 40px);
+    justify-content: center;
+    flex-wrap: wrap;
+  }
+  .score-sub div { display: flex; flex-direction: column; gap: 4px; }
+  .score-sub .k {
+    font-size: 9.5px; letter-spacing: .22em; text-transform: uppercase;
+    color: var(--ink-dim); font-weight: 600;
+  }
+  .score-sub .v { font-size: clamp(17px, 4vw, 23px); font-weight: 700; }
+  .best-flag {
+    margin-top: 16px;
+    font-size: clamp(11px, 2.7vw, 13px);
+    letter-spacing: .26em;
+    text-transform: uppercase;
+    font-weight: 700;
+    color: var(--amber);
+    opacity: 0;
+  }
+  .best-flag.on { opacity: 1; }
+
+  /* Landscape gate */
+
+  #rotate { z-index: 20; }
+  .rotate-panel { background: var(--void-0); gap: 0; }
+  .phone {
+    width: 74px; height: 122px;
+    border: 3px solid var(--cyan);
+    border-radius: 11px;
+    display: grid; place-items: center;
+    animation: turn 2.6s ease-in-out infinite;
+    box-shadow: 0 0 44px rgba(92,225,230,.28);
+  }
+  .phone .scr {
+    width: 46px; height: 4px; border-radius: 2px;
+    background: var(--cyan); opacity: .55;
+  }
+  @keyframes turn {
+    0%, 24%   { transform: rotate(0deg) }
+    54%, 82%  { transform: rotate(-90deg) }
+    100%      { transform: rotate(0deg) }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .phone { animation: none; transform: rotate(-90deg) }
+  }
+  .rot-title {
+    margin-top: 34px;
+    font-size: clamp(15px, 4.4vw, 20px); font-weight: 800;
+    letter-spacing: .16em; text-transform: uppercase; color: var(--ink);
+  }
+  .rot-sub {
+    margin-top: 10px;
+    font-size: clamp(11px, 3vw, 13px); letter-spacing: .18em;
+    text-transform: uppercase; font-weight: 600; color: var(--ink-dim);
+  }
+
+  .tapline {
+    margin-top: clamp(26px, 5.5vw, 38px);
+    appearance: none; border: 0; background: none; padding: 8px 12px;
+    font: inherit; font-weight: 800;
+    font-size: clamp(15px, 4.2vw, 21px);
+    letter-spacing: .24em; text-transform: uppercase;
+    color: var(--cyan); cursor: pointer;
+    text-shadow: 0 0 26px rgba(92,225,230,.45);
+    animation: breathe 1.9s ease-in-out infinite;
+  }
+  .tapline:focus-visible { outline: 2px solid var(--cyan); outline-offset: 3px; border-radius: 2px; }
+  @media (prefers-reduced-motion: reduce) { .tapline { animation: none; opacity: .95 } }
+
+  /* Corner controls */
+
+  #corner.hide-pause #btnPause { display: none; }
+
+  #corner {
+    position: absolute;
+    right: max(12px, env(safe-area-inset-right));
+    bottom: max(12px, env(safe-area-inset-bottom));
+    display: flex;
+    gap: 8px;
+    pointer-events: auto;
+    z-index: 5;
+  }
+  .icon {
+    width: 38px; height: 38px;
+    display: grid; place-items: center;
+    border: 1px solid rgba(154,147,184,.28);
+    border-radius: 2px;
+    background: rgba(3,5,15,.5);
+    color: var(--ink-dim);
+    cursor: pointer;
+    font-size: 15px;
+    line-height: 1;
+    transition: color .15s ease, border-color .15s ease;
+  }
+  .icon:hover { color: var(--ink); border-color: var(--ink-dim); }
+  .icon:focus-visible { outline: 2px solid var(--cyan); outline-offset: 2px; }
+
+
+  /* A new record: a slow light ray behind the number, above the panel's own ground. */
+  .panel { isolation: isolate; }
+  .score-big { position: relative; }
+  .score-big::before {
+    content: ''; position: absolute; left: 50%; top: 50%; width: 170vmin; height: 170vmin;
+    transform: translate(-50%,-50%); z-index: -1; opacity: 0; pointer-events: none;
+    background: repeating-conic-gradient(from 0deg, rgba(242,161,92,.14) 0 7deg, transparent 7deg 24deg);
+    -webkit-mask: radial-gradient(circle, #000 0%, rgba(0,0,0,.6) 22%, transparent 52%);
+    mask: radial-gradient(circle, #000 0%, rgba(0,0,0,.6) 22%, transparent 52%);
+    transition: opacity .6s ease;
+  }
+  #over.record .score-big::before { opacity: 1; animation: ray 18s linear infinite; }
+  @keyframes ray { to { transform: translate(-50%,-50%) rotate(360deg); } }
+  .best-line { margin-top: 14px; font-size: clamp(11px, 3vw, 13px); letter-spacing: .22em;
+               text-transform: uppercase; font-weight: 700; color: var(--amber); }
+  .best-line:empty { display: none; }
+  @media (prefers-reduced-motion: reduce) {
+    * { transition: none !important; animation: none !important; }
+  }
+</style>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <!-- HUD -->
+  <div class="layer" id="hud">
+    <div class="stat">
+      <span class="k">Score</span>
+      <span class="v mono" id="score">0</span>
+    </div>
+    <div class="stat right">
+      <span class="k">Distance</span>
+      <span class="v mono" id="dist">0 m</span>
+    </div>
+    <div id="combo" class="mono"></div>
+    <div id="powers" class="mono"></div>
+    <div id="hint">Hold to orbit &nbsp;&middot;&nbsp; Release to fly</div>
+  </div>
+
+  <!-- Intro: an overlay on a LIVE game, not a gate. Zero clicks to gameplay. -->
+  <div class="layer on" id="intro">
+    <div class="panel intro">
+      <h1 class="title">PERIGEE</h1>
+      <p class="tagline">Fall forever, hit nothing</p>
+      <div class="prompt">Hold anywhere to begin</div>
+      <div class="best-line mono" id="introBest"></div>
+    </div>
+  </div>
+
+  <!-- Game over -->
+  <div class="layer" id="over">
+    <div class="panel">
+      <span class="over-label" id="overLabel">Signal lost</span>
+      <div class="score-big mono" id="finalScore">0</div>
+      <div class="score-sub mono">
+        <div><span class="k">Distance</span><span class="v" id="finalDist">0 m</span></div>
+        <div><span class="k">Best Chain</span><span class="v" id="finalChain">0</span></div>
+        <div><span class="k">Best Score</span><span class="v" id="finalBest">0</span></div>
+      </div>
+      <span class="best-flag" id="bestFlag">New record</span>
+      <button class="tapline" id="again">Tap anywhere to retry</button>
+      <button class="btn ghost" id="revive">Continue &mdash; watch ad</button>
+    </div>
+  </div>
+
+  <!-- Pause -->
+  <div class="layer" id="paused">
+    <div class="panel">
+      <span class="tagline" style="margin:0">Paused</span>
+      <button class="btn" id="resume">Resume</button>
+      <button class="btn ghost" id="quit">Give up</button>
+    </div>
+  </div>
+
+  <div class="layer" id="rotate">
+    <div class="panel rotate-panel">
+      <div class="phone"><span class="scr"></span></div>
+      <p class="rot-title" id="rotTitle">Rotate your device</p>
+      <p class="rot-sub" id="rotSub">Perigee is played in landscape</p>
+    </div>
+  </div>
+
+  <div class="layer" id="flag"><div class="flagline mono" id="flagtext">NEW BEST</div></div>
+
+  <div id="corner">
+    <div class="icon" id="btnSound" role="button" tabindex="0" aria-label="Toggle sound">&#9835;</div>
+    <div class="icon" id="btnPause" role="button" tabindex="0" aria-label="Pause">&#10073;&#10073;</div>
+  </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+// Helpers every game and every kernel module share. Nothing here knows about
+// a game, the DOM beyond getElementById, or the portal.
+
+const TAU = Math.PI * 2;
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const rand  = (a, b) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
+const pick  = a => a[(Math.random() * a.length) | 0];
+
+const el = id => document.getElementById(id);
+
+// Haptics. The iOS wrapper registers a WKScriptMessageHandler named "haptic"
+// (ios/Sources/App.swift); everywhere else this is the Vibration API, which
+// Android WebView and Chrome have (VIBRATE is in the manifest) and iOS Safari
+// does not. A silent no-op where neither exists.
+function haptic(pattern) {
+  try {
+    const ios = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.haptic;
+    if (ios) ios.postMessage(pattern);
+    else if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch (e) {}
+}
+
+// localStorage that never throws (private mode, blocked storage).
+function store(k, v) {
+  try {
+    if (v === undefined) return localStorage.getItem(k);
+    localStorage.setItem(k, v);
+  } catch (e) {}
+  return null;
+}
+
+// Per-portal build configuration, injected by build.mjs. Defaults = dev build.
+const BUILD = Object.assign(
+  { portal: 'dev', escPause: true, devReward: true, continueUI: 'ad' },
+  (typeof window !== 'undefined' && window.__BUILD__) || {}
+);
+
+// The state every kernel module reads, and the hooks a game fills in.
+
+const STATE = { PLAY: 1, DEAD: 2, PAUSE: 3 };
+
+// Fields the kernel owns. A game adds its own with Object.assign(run, {...}),
+// including `best`, since the storage key is the game's.
+const run = {
+  state: STATE.PLAY, score: 0, bestChain: 0,
+  shake: 0, hitstop: 0, flash: 0, invuln: 0, time: 0,
+  awaitFirst: true, engaged: false, canRetry: false, revived: false,
+  cause: '', best: 0
+};
+
+// x/y are where the last press landed, in CSS pixels. A one-input game
+// ignores them; a game with tap targets (Cargo Loop's yard, switches and
+// dock) needs to know what was hit.
+const input = { held: false, locked: false, x: 0, y: 0 };
+
+// What the kernel asks of a game. Fill it with Object.assign(G, {...}) before
+// boot(). Hooks marked * are required; the rest are optional.
+//   layout()*          resize: derive the play rect / world scale from view.w, view.h
+//   reset(teach)*      resetRun: rebuild the world and the game's own run fields
+//   decay(dt)*         frame, every state: fade glows and the like
+//   idle(dt, clock)*   frame, before the first input: the attract-mode animation
+//   step(dt)*          frame, in play, after hitstop: the game itself
+//   dead(dt)*          frame, after death: camera drift
+//   syncHUD(dt)*       frame: push run state into the HUD
+//   render(t)*         frame: draw everything
+//   wake()*            start the continuous audio (begin, resume, revive)
+//   hush()*            stop it (die, pause, ad break)
+//   crash(cause, hit)* die: detach the player and fire the death effects
+//   record()*          die: persist bests; return true if this run set one
+//   overPanel()*       die: fill the game's own game-over fields
+//   revive()*          after a rewarded ad: put the player back in play
+//   slow(dt)           frame, in play, before hitstop; returns a time scale
+//   launch()           beginRun only: first-input effects
+//   tap()              press while already running (a second tap)
+//   key(e)             keydown the kernel didn't handle
+//   blocked()          true while input and stepping must stop (orientation gate)
+//   dying(cause, hit)  die, first thing; return true to cancel the death
+//   celebrate(i)       five times after a new best: burst stars around the player
+//   pilot()            true when a competent player would be holding right now,
+//                      judged from visible state only. Drives tools/triage.mjs.
+//   moment()           the beat that happened this frame ('hook', 'boom', …) or
+//                      null; names the captions in tools/trailer.mjs. dev-only.
+const G = {
+  overDelay: 620,                   // ms from death to the game-over panel
+  resumeInvuln: 0.4,                // seconds of grace after unpausing
+  dim: 'rgba(159,166,192,.4)',      // the sound button when muted
+  banner: { box: 'chain', text: 'chain', color: 'var(--gold)', ms: 1300 }
+};
+
+// Synthesised audio, no asset files. One context and one master gain, which
+// mute and ad-ducking both drive — anything routed through `master` (a game's
+// music, its engine loop) is covered for free. A game calls init() with its
+// storage key, master level, and its own event sounds; it must supply die().
+const Sound = {
+  key: '', gain: 0.4, ctx: null, master: null, on: true, ducked: false, ready: false,
+  init(key, gain, fx) {
+    this.key = key; this.gain = gain; this.on = store(key) !== '0';
+    return Object.assign(this, fx);
+  },
+  boot() {
+    if (this.ready) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.on ? this.gain : 0;
+      this.master.connect(this.ctx.destination);
+      this.ready = true;
+    } catch (e) {}
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{}); },
+  level() { return (this.on && !this.ducked) ? this.gain : 0; },
+  duck(on) { this.ducked = on; if (this.master) this.master.gain.setTargetAtTime(this.level(), this.ctx.currentTime, 0.02); },
+  toggle() {
+    this.on = !this.on; store(this.key, this.on ? '1' : '0');
+    if (this.master) this.master.gain.setTargetAtTime(this.level(), this.ctx.currentTime, 0.02);
+    return this.on;
+  },
+  tone(f, d, type, v, to) {
+    if (!this.ready || !this.on) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(f, t);
+    if (to) o.frequency.exponentialRampToValueAtTime(Math.max(20, to), t + d);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + d + 0.02);
+  },
+  noise(d, v, cut) {
+    if (!this.ready || !this.on) return;
+    const t = this.ctx.currentTime;
+    const n = Math.floor(this.ctx.sampleRate * d);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const arr = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) arr[i] = (Math.random()*2-1) * (1 - i/n);
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type='lowpass';
+    f.frequency.setValueAtTime(cut || 1500, t);
+    f.frequency.exponentialRampToValueAtTime(200, t + d);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t);
+  },
+  ui() { this.tone(520, 0.07, 'square', 0.09, 700); },
+
+};
+
+// Particles and expanding rings. Drawing stays in the game (each has its own
+// look); the kernel owns the pools so resetRun can clear them.
+const parts = [], waves = [];
+
+// Defaults a call can leave out. A game overrides with Object.assign(FX, {...}).
+const FX = { color: '#7CFFB2', maxSpeed: 240, maxR: 3.2, drag: 1.7,
+                    r0: 10, waveR: 260, life: 0.7, waveColor: '#58D7FF' };
+
+function burst(x, y, n, o) {
+  o = o || {};
+  for (let i = 0; i < n; i++) {
+    const a = o.angle !== undefined ? o.angle + rand(-o.spread, o.spread) : rand(0, TAU);
+    const s = rand(o.minSpeed || 40, o.maxSpeed || FX.maxSpeed);
+    parts.push({ x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+      life: rand(o.minLife || 0.25, o.maxLife || 0.7), age:0,
+      r: rand(o.minR || 1.2, o.maxR || FX.maxR), c: o.color || FX.color, drag: o.drag || FX.drag });
+  }
+}
+function shockwave(x, y, o) {
+  o = o || {};
+  waves.push({ x:x, y:y, r0:o.r0||FX.r0, maxR:o.maxR||FX.waveR, age:-(o.delay||0),
+    life:o.life||FX.life, color:o.color||FX.waveColor, width:o.width||5 });
+}
+function stepFx(dt) {
+  for (let i = parts.length-1; i>=0; i--) {
+    const p = parts[i]; p.age += dt;
+    if (p.age >= p.life) { parts.splice(i,1); continue; }
+    const d = Math.exp(-p.drag*dt); p.vx*=d; p.vy*=d;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+  }
+  for (let i = waves.length-1; i>=0; i--) { waves[i].age += dt; if (waves[i].age >= waves[i].life) waves.splice(i,1); }
+}
+
+// Portal SDK wrapper: Poki, CrazyGames or the Android host, degrading to a
+// no-op so the game plays identically with an ad blocker on. commercial() and
+// rewarded() return promises; nothing else in a game knows where it is.
+
+// Mute audio and swallow input for the duration of an ad break. Input stays
+// locked until the callback, so every path through an ad must settle exactly once.
+function adLock(on) {
+  input.locked = on; input.held = false;
+  if (on) { G.hush(); Sound.duck(true); } else Sound.duck(false);
+}
+
+// Ad placement knobs — WHEN an ad is asked for; the Portal only knows HOW.
+// Defaults ship in the bundle. BUILD.configUrl (a per-target build flag, empty
+// until a host exists) names a flat JSON of the same keys that overrides them
+// at boot, so cadence changes without a store build. The last fetched set is
+// cached, so it also applies offline; a fetch that fails changes nothing.
+const Ads = {
+  ads: true,           // master: false silences both kinds
+  interstitial: true,  // the between-run ad
+  revive: true,        // the rewarded continue
+  everyDeaths: 1,      // interstitial on every Nth retry
+  minGap: 0,           // seconds between interstitials
+  graceRetries: 0,     // no interstitial on the first N retries of a session
+  _since: 0, _retries: 0, _last: -1e9,
+  apply(j) {
+    for (const k of ['everyDeaths', 'minGap', 'graceRetries']) if (typeof j[k] === 'number' && j[k] >= 0) this[k] = j[k];
+    for (const k of ['ads', 'interstitial', 'revive']) if (typeof j[k] === 'boolean') this[k] = j[k];
+  },
+  async load() {
+    try { this.apply(JSON.parse(store('arcade.ads')) || {}); } catch (e) {}
+    if (!BUILD.configUrl) return;
+    try {
+      const j = await (await fetch(BUILD.configUrl, { cache: 'no-store' })).json();
+      this.apply(j); store('arcade.ads', JSON.stringify(j));
+    } catch (e) {}
+  },
+  // Called once per retry. True when this retry should carry an interstitial.
+  wantInterstitial(now = performance.now()) {
+    if (!this.ads || !this.interstitial) return false;
+    if (++this._retries <= this.graceRetries) return false;
+    if (++this._since < this.everyDeaths || now - this._last < this.minGap * 1000) return false;
+    this._since = 0; this._last = now;
+    return true;
+  }
+};
+
+// The Android host can't return a value from a JavascriptInterface call, so
+// each ad request carries a ticket the native side calls back with.
+const adCalls = new Map();
+let adTicket = 0;
+function nativeAd(method) {
+  return new Promise(res => {
+    const id = ++adTicket;
+    adCalls.set(id, res);
+    // Only a genuinely dead host should trip this. A real rewarded video can
+    // legitimately run 30s+, and resolving early would strand the callback.
+    setTimeout(() => { if (adCalls.has(id)) { adCalls.delete(id); res(false); } }, 90000);
+    try { window[Portal.native][method](id); }
+    catch (e) { adCalls.delete(id); res(false); }
+  });
+}
+
+const Portal = {
+  kind: 'none', inPlay: false, native: null,
+  // Wire the native bridge (Android's JavascriptInterface, or the iOS shim of
+  // it): `iface` is the object the wrapper injects, `callback` the window
+  // function its AdHost answers tickets on.
+  android(iface, callback) {
+    this.native = iface;
+    window[callback] = function (id, ok) {
+      const fn = adCalls.get(id);
+      if (!fn) return;
+      adCalls.delete(id);
+      fn(!!ok);
+    };
+  },
+  detect() {
+    if (typeof window.PokiSDK !== 'undefined') this.kind = 'poki';
+    else if (window.CrazyGames && window.CrazyGames.SDK) this.kind = 'crazy';
+    // The store wrappers inject the same JavascriptInterface shape (iOS shims it
+    // over a WKScriptMessageHandler), so both are the 'android' kind here.
+    else if (this.native && window[this.native] && (BUILD.portal === 'android' || BUILD.portal === 'ios')) this.kind = 'android';
+  },
+  async init() {
+    this.detect();
+    try {
+      if (this.kind === 'poki') await window.PokiSDK.init();
+      else if (this.kind === 'crazy') await window.CrazyGames.SDK.init();
+    } catch (e) { this.kind = 'none'; }
+  },
+  loadingFinished() { try { if (this.kind === 'poki') window.PokiSDK.gameLoadingFinished(); } catch (e) {} },
+  gameplayStart() {
+    if (this.inPlay) return; this.inPlay = true;
+    try {
+      if (this.kind === 'poki') window.PokiSDK.gameplayStart();
+      else if (this.kind === 'crazy') window.CrazyGames.SDK.game.gameplayStart();
+    } catch (e) {}
+  },
+  gameplayStop() {
+    if (!this.inPlay) return; this.inPlay = false;
+    try {
+      if (this.kind === 'poki') window.PokiSDK.gameplayStop();
+      else if (this.kind === 'crazy') window.CrazyGames.SDK.game.gameplayStop();
+    } catch (e) {}
+  },
+  // Interstitial between runs. Always resolves — never blocks the game.
+  commercial() {
+    this.gameplayStop(); adLock(true);
+    return new Promise(res => {
+      let done = false;
+      const fin = () => { if (done) return; done = true; adLock(false); res(); };
+      try {
+        if (this.kind === 'poki') { window.PokiSDK.commercialBreak().then(fin, fin); return; }
+        if (this.kind === 'crazy') { window.CrazyGames.SDK.ad.requestAd('midgame', { adFinished: fin, adError: fin }); return; }
+        if (this.kind === 'android') { nativeAd('showInterstitial').then(fin, fin); return; }
+      } catch (e) {}
+      fin();
+    });
+  },
+  // Rewarded ad for the continue. Resolves true only on a real completed view.
+  rewarded() {
+    this.gameplayStop(); adLock(true);
+    return new Promise(res => {
+      let done = false;
+      const fin = ok => { if (done) return; done = true; adLock(false); res(!!ok); };
+      try {
+        if (this.kind === 'poki') { window.PokiSDK.rewardedBreak().then(ok => fin(ok), () => fin(false)); return; }
+        if (this.kind === 'crazy') { window.CrazyGames.SDK.ad.requestAd('rewarded', { adFinished: () => fin(true), adError: () => fin(false) }); return; }
+        if (this.kind === 'android') { nativeAd('showRewarded').then(ok => fin(ok), () => fin(false)); return; }
+      } catch (e) {}
+      // Never reward when the SDK is blocked — portals forbid it.
+      fin(BUILD.devReward === true);
+    });
+  }
+};
+
+// The shell around a game: canvas and view, overlay layers, the run lifecycle
+// (start / begin / die / pause / retry / revive), input, and the frame loop.
+// Everything game-shaped is reached through the hooks in G.
+
+/* =========================================================
+   VIEW
+   ========================================================= */
+
+const canvas = el('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+const view = { w:0, h:0, dpr:1, scale:1 };
+
+function resize() {
+  const de = document.documentElement;
+  const w = Math.max(1, Math.round(window.innerWidth  || de.clientWidth));
+  const h = Math.max(1, Math.round(window.innerHeight || de.clientHeight));
+  const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+  view.w = w; view.h = h; view.dpr = dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  G.layout();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+/* =========================================================
+   LAYERS
+   ========================================================= */
+
+const CONTINUE_UI = BUILD.continueUI || 'ad';
+const layers = { hud: el('hud'), intro: el('intro'), over: el('over'), paused: el('paused') };
+
+function show(name) {
+  for (const k in layers) layers[k].classList.toggle('on',
+    k === name || (name === 'play' && k === 'hud') || (name === 'intro' && k === 'hud'));
+  if (name === 'over' || name === 'paused') layers.hud.classList.add('on');
+  el('corner').classList.toggle('hide-pause', name !== 'play' && name !== 'paused');
+  if (name !== 'intro') el('intro').classList.remove('on');
+}
+
+let bannerT = null;
+function banner(text, color) {
+  const B = G.banner, box = el(B.box), t = el(B.text);
+  t.textContent = text; t.style.color = color || B.color;
+  if (B.shadow) t.style.textShadow = '0 0 30px ' + (color || B.shadow) + 'aa';
+  if (B.pop) { box.classList.remove('on'); void box.offsetWidth; }   // restart the animation
+  box.classList.add('on');
+  clearTimeout(bannerT);
+  bannerT = setTimeout(() => box.classList.remove('on'), B.ms);
+}
+const bannerShown = () => !!bannerT;
+
+/* =========================================================
+   RUN LIFECYCLE
+   ========================================================= */
+
+function resetRun() {
+  run.score = 0; run.bestChain = 0;
+  run.shake = 0; run.hitstop = 0; run.flash = 0; run.time = 0;
+  run.awaitFirst = true; run.engaged = false; run.canRetry = false;
+  run.revived = false; run.cause = '';
+  parts.length = 0; waves.length = 0;
+}
+
+// The game is live from the first frame; the run only *begins* on first input.
+// That is what keeps this at zero clicks to gameplay, and it is also exactly
+// when portals want gameplayStart() to fire.
+function startRun(teach) { resetRun(); G.reset(teach); run.state = STATE.PLAY; show('intro'); }
+
+function beginRun() {
+  if (!run.awaitFirst) return;
+  run.awaitFirst = false;
+  show('play');
+  Sound.boot(); Sound.resume(); G.wake();
+  Portal.gameplayStart();
+  if (G.launch) G.launch();
+}
+
+function die(cause, hitObj) {
+  if (run.state !== STATE.PLAY) return;
+  if (G.dying && G.dying(cause, hitObj)) return;
+  run.state = STATE.DEAD; run.cause = cause;
+  run.shake = 1; run.flash = 0.5; haptic([50, 40, 90]);
+  input.held = false;
+  G.crash(cause, hitObj);
+  Sound.die(); G.hush();
+  Portal.gameplayStop();
+
+  run.score = Math.round(run.score);
+  const isBest = G.record();
+
+  setTimeout(() => {
+    run.canRetry = true;
+    el('overLabel').textContent = cause;
+    G.overPanel();
+    el('finalBest').textContent = run.best.toLocaleString();
+    el('bestFlag').classList.toggle('on', isBest);
+    layers.over.classList.toggle('record', isBest);
+    // A new best is celebrated: the panel's CSS spins a light ray behind the
+    // number, and the game bursts stars around the player a few times.
+    if (isBest && G.celebrate) for (let i = 0; i < 5; i++) setTimeout(() => G.celebrate(i), i * 320);
+    el('revive').style.display = (CONTINUE_UI === 'none' || !Ads.ads || !Ads.revive || run.revived) ? 'none' : '';
+    show('over');
+  }, G.overDelay);
+}
+
+function doPause() {
+  if (run.state !== STATE.PLAY) return;
+  run.state = STATE.PAUSE; input.held = false;
+  Portal.gameplayStop(); G.hush(); show('paused');
+}
+function doResume() {
+  if (run.state !== STATE.PAUSE) return;
+  run.state = STATE.PLAY; run.invuln = Math.max(run.invuln, G.resumeInvuln);
+  show('play'); Sound.resume(); G.wake(); Portal.gameplayStart();
+}
+function giveUp() { run.state = STATE.PLAY; run.invuln = 0; show('play'); die('Gave up'); }
+
+async function retry() {
+  if (run.state !== STATE.DEAD || !run.canRetry) return;
+  run.canRetry = false;
+  Sound.ui(); show('none');                 // blank while the interstitial runs
+  if (Ads.wantInterstitial()) await Portal.commercial();
+  startRun();
+}
+
+function toggleSound() { Sound.boot(); const on = Sound.toggle(); el('btnSound').style.color = on ? 'var(--ink)' : G.dim; }
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+
+function press(e) {
+  if (e && e.cancelable) e.preventDefault();
+  if (input.locked || (G.blocked && G.blocked())) return;
+  if (run.state === STATE.DEAD) { retry(); return; }
+  Sound.boot(); Sound.resume();
+  if (e && e.clientX !== undefined) { input.x = e.clientX; input.y = e.clientY; }
+  if (run.awaitFirst) beginRun();
+  else if (G.tap) G.tap();
+  input.held = true;
+}
+function release(e) { if (e && e.cancelable) e.preventDefault(); input.held = false; }
+
+canvas.addEventListener('pointerdown', press);
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('wheel', e => { if (e.cancelable) e.preventDefault(); }, { passive:false });
+window.addEventListener('keydown', e => {
+  if (e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp'||e.code==='KeyW') {
+    if (e.repeat) return;
+    if (run.state === STATE.DEAD) { e.preventDefault(); retry(); return; }
+    press(e);
+  } else if ((e.code==='Escape' && BUILD.escPause) || e.code==='KeyP') {
+    if (run.state===STATE.PLAY) doPause(); else if (run.state===STATE.PAUSE) doResume();
+  } else if (e.code==='KeyM') toggleSound();
+  else if (G.key) G.key(e);
+});
+window.addEventListener('keyup', e => {
+  if (e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp'||e.code==='KeyW') release(e);
+});
+window.addEventListener('blur', () => { input.held=false; if (run.state===STATE.PLAY) doPause(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { input.held=false; if (run.state===STATE.PLAY) doPause(); }
+});
+
+// Tap anywhere on the game-over screen — except on the rewarded button.
+el('over').addEventListener('pointerdown', e => {
+  if (e.target.closest && e.target.closest('#revive')) return;
+  if (e.cancelable) e.preventDefault();
+  retry();
+});
+el('revive').addEventListener('pointerdown', e => e.stopPropagation());
+el('again').addEventListener('click', e => { e.preventDefault(); retry(); });
+el('revive').addEventListener('click', async () => {
+  Sound.ui();
+  const ok = await Portal.rewarded();
+  if (!ok) return;
+  run.revived = true; run.state = STATE.PLAY;
+  G.revive();
+  show('play'); Sound.resume(); G.wake(); Portal.gameplayStart();
+});
+el('resume').addEventListener('click', () => { Sound.ui(); doResume(); });
+el('quit').addEventListener('click', () => { Sound.ui(); giveUp(); });
+el('btnPause').addEventListener('click', () => {
+  if (run.state===STATE.PLAY) doPause(); else if (run.state===STATE.PAUSE) doResume();
+});
+el('btnSound').addEventListener('click', toggleSound);
+
+/* =========================================================
+   LOOP
+   ========================================================= */
+
+let last = performance.now(), clock = 0;
+
+function frame(now) {
+  let dt = (now-last)/1000; last = now;
+  if (dt > 0.05) dt = 0.05;   // clamp after tab switches / hitches
+  clock += dt;
+
+  // Decays that run in every state
+  run.shake = Math.max(0, run.shake - dt*2.6);
+  run.flash = Math.max(0, run.flash - dt*2.2);
+  G.decay(dt);
+  stepFx(dt);
+
+  if (G.blocked && G.blocked()) {
+    input.held = false;
+    G.render(clock);
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  if (run.state === STATE.PLAY && run.awaitFirst) {
+    G.idle(dt, clock);
+  } else if (run.state === STATE.PLAY) {
+    const scale = G.slow ? G.slow(dt) : 1;
+    if (run.hitstop > 0) run.hitstop -= dt;
+    else {
+      dt *= scale;
+      run.invuln = Math.max(0, run.invuln - dt);
+      run.time += dt;
+      G.step(dt);
+    }
+  } else if (run.state === STATE.DEAD) {
+    G.dead(dt);
+  }
+
+  G.syncHUD(dt);
+  G.render(clock);
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+
+// One handle every game exposes, so a harness can drive any of them the same
+// way (tools/triage.mjs). Games add their own richer handle beside it.
+window.__game = { run, input, STATE, G, Ads, begin: beginRun, restart: startRun };
+
+
+// Android's back button: pause a live run rather than dropping out of the app.
+// Returns true if the game consumed it, false to let the host close.
+window.__gameBack = function () {
+  if (run.state === STATE.PLAY && !run.awaitFirst) { doPause(); return true; }
+  if (run.state === STATE.PAUSE) { doResume(); return true; }
+  return false;
+};
+
+async function boot() {
+  resize();
+  el('btnSound').style.color = Sound.on ? 'var(--ink)' : G.dim;
+  el('finalBest').textContent = run.best.toLocaleString();
+  if (CONTINUE_UI === 'none') el('revive').style.display = 'none';
+  else el('revive').innerHTML = '<span aria-hidden="true">&#9654;</span>&nbsp; Continue &mdash; watch ad';
+  await Portal.init();
+  Ads.load();                              // not awaited: the first retry is seconds away, boot is not
+  Portal.loadingFinished();
+  startRun();
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   0. CONSTANTS
+   ========================================================= */
+
+const TARGET_VIS_H = 980;    // world units of vertical sight we aim for
+const MIN_VIEW_W   = 980;    // guarantee this much horizontal sight on any aspect
+const RAIL_MIN     = 780;    // corridor height clamps
+const RAIL_MAX     = 1300;
+let   HALF_H       = 411;    // half the corridor height; recomputed on resize
+let   SPEED_SCALE  = 1;      // keeps time-to-cross-screen consistent across aspects
+
+const SHIP_R       = 9;
+const BASE_SPEED   = 385;
+const MAX_SPEED    = 720;
+const SPEED_RAMP   = 0.28;   // per metre
+
+const TRAIL_STEP   = 0.014;  // seconds between trail samples
+const TRAIL_LIFE   = 2.55;   // seconds until a wake point vanishes
+const TRAIL_ARM    = 0.92;   // seconds until a wake point turns lethal
+const TRAIL_R      = 5.0;
+
+const CAP_PAD      = 118;    // gravity capture reach beyond planet surface
+const GRAZE_FACTOR = 1.58;   // orbit radius <= r * this  =>  perigee bonus
+const COMBO_WINDOW = 2.6;    // seconds of free flight before the chain breaks
+
+const EMBER_TIME  = 3.2;     // seconds from attach to detonation
+const MILESTONE   = 1000;    // metres between pulses
+
+// Power-ups. Each activates on touch — no second input, which keeps the
+// game one-button. Shield is instant-consume; the others are timed.
+const POWERS = {
+  shield:    { color: '#9FE8FF', label: 'SHIELD',    dur: 0    },
+  coolant:   { color: '#B47CFF', label: 'COOLANT',   dur: 6.0  },
+  overdrive: { color: '#F2A15C', label: 'OVERDRIVE', dur: 5.0  }
+};
+const POWER_KEYS = Object.keys(POWERS);
+
+/* =========================================================
+   1. AUDIO — the kernel owns the context; these are Perigee's sounds
+   ========================================================= */
+
+Sound.init('perigee.sound', 0.42, {
+  drone: null,
+
+  startDrone() {
+    if (!this.ready || this.drone) return;
+    const t = this.ctx.currentTime;
+    const g = this.ctx.createGain();
+    g.gain.value = 0;
+    g.gain.setTargetAtTime(0.055, t, 1.2);
+    const a = this.ctx.createOscillator(); a.type = 'sawtooth'; a.frequency.value = 55;
+    const b = this.ctx.createOscillator(); b.type = 'sine';     b.frequency.value = 82.5;
+    const f = this.ctx.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 240; f.Q.value = 3;
+    a.connect(f); b.connect(f); f.connect(g); g.connect(this.master);
+    a.start(t); b.start(t);
+    this.drone = { g: g, a: a, b: b };
+  },
+
+  stopDrone() {
+    if (!this.drone) return;
+    const t = this.ctx.currentTime;
+    this.drone.g.gain.setTargetAtTime(0, t, 0.25);
+    const d = this.drone; this.drone = null;
+    setTimeout(() => { try { d.a.stop(); d.b.stop(); } catch (e) {} }, 900);
+  },
+
+  // Event sounds
+  latch()  { this.tone(300, 0.14, 'triangle', 0.24, 640); },
+  launch(m){ this.tone(440 + m * 55, 0.2, 'sawtooth', 0.16, 190); this.noise(0.1, 0.08, 2400); },
+  orb(m)   { this.tone(760 + m * 90, 0.1, 'square', 0.11, 1180); },
+  graze()  { this.tone(1180, 0.09, 'sine', 0.13, 1560); },
+  die()    { this.noise(0.75, 0.4, 2600); this.tone(190, 0.7, 'sawtooth', 0.2, 34); },
+  bounce() { this.tone(300, 0.13, 'triangle', 0.2, 720); this.noise(0.07, 0.07, 1800); },
+  milestone() {
+    this.tone(523, 0.13, 'triangle', 0.16, 660);
+    setTimeout(() => this.tone(784, 0.13, 'triangle', 0.16, 880), 70);
+    setTimeout(() => this.tone(1046, 0.34, 'sine', 0.15, 1250), 145);
+  },
+  power()  { this.tone(620, 0.1, 'square', 0.13, 980); this.tone(310, 0.22, 'triangle', 0.1, 480); },
+  guard()  { this.noise(0.3, 0.24, 3000); this.tone(240, 0.35, 'square', 0.16, 90); },
+  // A chord, not an arpeggio — the ear learns beat from bar.
+  zone()   {
+    this.tone(196, 0.9, 'sine', 0.15);
+    this.tone(294, 0.9, 'triangle', 0.11);
+    this.tone(392, 0.8, 'sine', 0.09);
+    setTimeout(() => this.tone(588, 0.7, 'sine', 0.08, 660), 180);
+    this.noise(0.5, 0.1, 2200);
+  }
+});
+
+/* =========================================================
+   2. VIEW — landscape corridor, and the orientation gate
+   ========================================================= */
+
+Object.assign(view, { wW: 0, wH: 0 });
+Object.assign(FX, { color: '#5CE1E6', maxSpeed: 260, maxR: 3.4, drag: 1.6,
+                    r0: 12, waveR: 300, life: 0.72, waveColor: '#5CE1E6' });
+
+// Landscape gate. This is a prompt, not an orientation LOCK — portals handle
+// locking themselves and forbid games doing it.
+let blocked = false;
+
+function checkOrientation() {
+  const wasBlocked = blocked;
+  blocked = (view.w / view.h) < 1.05;
+  if (blocked === wasBlocked) return;
+
+  const layer = document.getElementById('rotate');
+  if (!layer) return;
+  layer.classList.toggle('on', blocked);
+
+  if (blocked) {
+    input.held = false;
+    const coarse = window.matchMedia && window.matchMedia('(pointer: coarse)').matches;
+    document.getElementById('rotTitle').textContent = coarse ? 'Rotate your device' : 'Widen the window';
+    document.getElementById('rotSub').textContent = 'Perigee is played in landscape';
+    Sound.stopDrone();
+    Portal.gameplayStop();
+  } else if (run.state === STATE.PLAY && !run.awaitFirst) {
+    run.invuln = Math.max(run.invuln, 0.6);   // don't punish the interruption
+    Sound.resume(); Sound.startDrone();
+    Portal.gameplayStart();
+  }
+}
+
+/* ---- Shockwave rings: an inner echo gives them body without a second wave ---- */
+
+function drawWaves() {
+  ctx.globalCompositeOperation = 'lighter';
+  for (const w of waves) {
+    if (w.age < 0) continue;
+    const t = w.age / w.life;
+    const e = 1 - Math.pow(1 - t, 3);              // fast out, easing to a stop
+    const r = w.r0 + (w.maxR - w.r0) * e;
+    const a = Math.pow(1 - t, 1.7);
+    ctx.strokeStyle = w.color;
+    ctx.globalAlpha = a * 0.85;
+    ctx.lineWidth = Math.max(0.6, w.width * (1 - t * 0.8));
+    ctx.beginPath(); ctx.arc(w.x, w.y, r, 0, TAU); ctx.stroke();
+    // Inner echo gives the ring some body without a second wave object.
+    ctx.globalAlpha = a * 0.3;
+    ctx.lineWidth = Math.max(0.5, w.width * 0.45 * (1 - t));
+    ctx.beginPath(); ctx.arc(w.x, w.y, r * 0.82, 0, TAU); ctx.stroke();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+/* =========================================================
+   6. STARFIELD (parallax, procedurally tiled)
+   ========================================================= */
+
+const STAR_TILE = 1400;
+const starLayers = [];
+
+function buildStars() {
+  starLayers.length = 0;
+  const specs = [
+    { n: 70, depth: 0.14, minR: 0.6, maxR: 1.3, alpha: 0.42 },
+    { n: 46, depth: 0.30, minR: 0.9, maxR: 1.9, alpha: 0.60 },
+    { n: 24, depth: 0.55, minR: 1.3, maxR: 2.7, alpha: 0.85 }
+  ];
+  for (const s of specs) {
+    const pts = [];
+    for (let i = 0; i < s.n; i++) {
+      pts.push({
+        x: Math.random() * STAR_TILE,
+        y: Math.random() * STAR_TILE,
+        r: rand(s.minR, s.maxR),
+        tw: Math.random() * TAU,
+        tier: Math.random() < 0.18 ? 1 : (Math.random() < 0.3 ? 2 : 0)
+      });
+    }
+    starLayers.push({ pts: pts, depth: s.depth, alpha: s.alpha });
+  }
+}
+buildStars();
+
+/* ---------------------------------------------------------
+   ZONES
+   Rails and the armed wake stay red in every zone on purpose:
+   "red kills you" is learned in the first ten seconds and must
+   never be repainted. Only the world's own colours change.
+   --------------------------------------------------------- */
+
+const ZONE_AT   = [0, 1000, 2200, 3600, 5200];
+const DEEP_LOOP = 1600;
+const ZONE_FADE = 1.5;     // seconds
+const RAMP_HOLD = 250;     // metres of flat speed after a boundary
+
+const ZONES = [
+  // A journey outward: near space, a teal nebula, a violet one, a dying star,
+  // then the void. Rails, rocks and the armed wake stay red in all of them.
+  { name: 'DRIFT BELT', accent: '#8FD3FF',
+    bg: ['#0F1745', '#080C2B', '#03050F'], oob: '#020209',
+    starA: '#8FD3FF', starB: '#DDE9FF',
+    cols: { std:['#D98B5A','#6B3A22'], dense:['#8FD3FF','#2A5C8A'],
+            giant:['#E8D3A8','#7A6240'], pulsar:['#7CFFD4','#1B6A56'] } },
+
+  { name: 'THE SCATTER', accent: '#5CE1E6',
+    bg: ['#0A3340', '#06202B', '#03101A'], oob: '#020A10',
+    starA: '#5CE1E6', starB: '#CFFFF7',
+    cols: { std:['#7FC8C0','#2A5A58'], dense:['#5CE1E6','#155A63'],
+            giant:['#A8E0D8','#3A6A66'], pulsar:['#B6FFF0','#1E6B70'] } },
+
+  { name: 'BINARY REACH', accent: '#C89CFF',
+    bg: ['#2A1650', '#180C33', '#0A0518'], oob: '#06030F',
+    starA: '#B47CFF', starB: '#E6D6FF',
+    cols: { std:['#B47CFF','#4A2A70'], dense:['#E070FF','#5A1F70'],
+            giant:['#8C7CFF','#33288A'], pulsar:['#F0C2FF','#6A3A80'] } },
+
+  { name: 'EMBERFALL', accent: '#FF8A5C',
+    bg: ['#3A1214', '#22090C', '#0D0305'], oob: '#080203',
+    starA: '#FFB07A', starB: '#FFE3C8',
+    cols: { std:['#FF7A59','#7A2A12'], dense:['#FFC24D','#7A5210'],
+            giant:['#E04A2A','#5A1A0E'], pulsar:['#FFE08A','#8A5A14'] } },
+
+  { name: 'THE DEEP', accent: '#7FB0FF',
+    bg: ['#050A1E', '#03060F', '#010206'], oob: '#000103',
+    starA: '#5CE1E6', starB: '#7FB0FF',
+    cols: { std:['#5C7FD0','#1F2E60'], dense:['#5CE1E6','#14484F'],
+            giant:['#4058B8','#182050'], pulsar:['#9FE8FF','#2A6A80'] } }
+];
+
+function hexRGB(h) {
+  return [parseInt(h.slice(1,3),16), parseInt(h.slice(3,5),16), parseInt(h.slice(5,7),16)];
+}
+function mixRGB(a, b, t) {
+  return [ (a[0]+(b[0]-a[0])*t)|0, (a[1]+(b[1]-a[1])*t)|0, (a[2]+(b[2]-a[2])*t)|0 ];
+}
+function css(c, a) {
+  return a === undefined ? 'rgb(' + c[0] + ',' + c[1] + ',' + c[2] + ')'
+                         : 'rgba(' + c[0] + ',' + c[1] + ',' + c[2] + ',' + a + ')';
+}
+function dim(c, f) { return [(c[0]*f)|0, (c[1]*f)|0, (c[2]*f)|0]; }
+
+for (const z of ZONES) {
+  z._bg = z.bg.map(hexRGB);
+  z._oob = hexRGB(z.oob);
+  z._sa = hexRGB(z.starA);
+  z._sb = hexRGB(z.starB);
+  z._cols = {};
+  for (const k in z.cols) z._cols[k] = z.cols[k].map(hexRGB);
+}
+
+// The live palette every draw call reads from.
+const pal = { bg: [[0,0,0],[0,0,0],[0,0,0]], oob: [0,0,0], sa: [0,0,0], sb: [0,0,0], cols: {} };
+
+function setPalette(a, b, t, darken) {
+  const f = darken === undefined ? 1 : darken;
+  for (let i = 0; i < 3; i++) pal.bg[i] = dim(mixRGB(a._bg[i], b._bg[i], t), f);
+  pal.oob = dim(mixRGB(a._oob, b._oob, t), f);
+  pal.sa = mixRGB(a._sa, b._sa, t);
+  pal.sb = mixRGB(a._sb, b._sb, t);
+  for (const k in a._cols) {
+    pal.cols[k] = [ mixRGB(a._cols[k][0], b._cols[k][0], t),
+                    mixRGB(a._cols[k][1], b._cols[k][1], t) ];
+  }
+}
+
+setPalette(ZONES[0], ZONES[0], 1, 1);
+
+function zoneIndexAt(m) {
+  let z = 0;
+  for (let i = 0; i < ZONE_AT.length; i++) if (m >= ZONE_AT[i]) z = i;
+  return z;
+}
+
+// Distance to the nearest zone boundary, used to suppress clashing pulses.
+function zoneProgress(m) {
+  const z = zoneIndexAt(m);
+  const from = ZONE_AT[z];
+  const to = z < ZONE_AT.length - 1 ? ZONE_AT[z + 1] : from + DEEP_LOOP;
+  return clamp((m - from) / (to - from), 0, 1);
+}
+
+// Sparse on arrival, common by the end of the zone.
+function featureChance(m) {
+  const z = zoneIndexAt(m);
+  if (z === 4) return Math.min(0.55, 0.34 + run.deepCycle * 0.05);
+  return 0.12 + 0.33 * zoneProgress(m);
+}
+
+function nearBoundary(m) {
+  for (let i = 1; i < ZONE_AT.length; i++) if (Math.abs(m - ZONE_AT[i]) < 300) return true;
+  if (m > ZONE_AT[4]) {
+    const into = (m - ZONE_AT[4]) % DEEP_LOOP;
+    if (into < 300 || into > DEEP_LOOP - 300) return true;
+  }
+  return false;
+}
+
+/* =========================================================
+   7. WORLD
+   ========================================================= */
+
+const world = {
+  planets: [],
+  orbs: [],
+  rocks: [],
+  powers: [],
+  pairs: [],
+  gates: [],
+  pads: [],
+  nextPadX: 0,
+  nextBarrier: 0,
+  genX: 0,
+  side: 1              // which rail the next body leans to; they alternate
+};
+
+// Sizes and weights are zone-independent; colour comes from the live palette.
+const PLANET_TYPES = [
+  { key: 'std',   w: 58, rMin: 44, rMax: 78,  ring: false },
+  { key: 'dense', w: 22, rMin: 24, rMax: 34,  ring: false },
+  { key: 'giant', w: 14, rMin: 96, rMax: 132, ring: true  },
+  { key: 'pulsar',w: 6,  rMin: 30, rMax: 40,  ring: false }
+];
+const TYPE_TOTAL = PLANET_TYPES.reduce((a, t) => a + t.w, 0);
+
+function rollType() {
+  let r = Math.random() * TYPE_TOTAL;
+  for (const t of PLANET_TYPES) { r -= t.w; if (r <= 0) return t; }
+  return PLANET_TYPES[0];
+}
+
+function resetWorld() {
+  world.planets.length = 0;
+  world.orbs.length = 0;
+  world.rocks.length = 0;
+  world.powers.length = 0;
+  world.pairs.length = 0;
+  world.gates.length = 0;
+  world.pads.length = 0;
+  world.nextPadX = 900;
+  world.nextBarrier = 940;    // first wall ~3.6s in, every run
+  world.genX = 0;
+
+  // A guaranteed forgiving opener: offset from the flight line so the approach
+  // is tangential (never head-on), with an oversized capture field.
+  const opener = addPlanet(600, -Math.min(130, HALF_H * 0.30), PLANET_TYPES[0], 58);
+  opener.cap = 250;
+  world.genX = 600;
+  world.side = 1;                     // the opener sits above the line; the next goes below
+}
+
+function addPlanet(x, y, type, forcedR) {
+  const r = forcedR || rand(type.rMin, type.rMax);
+  const p = {
+    x: x, y: y, r: r,
+    cap: r + CAP_PAD,
+    type: type.key,
+    ring: type.ring,
+    spin: rand(0, TAU),
+    spinRate: rand(-0.35, 0.35),
+    pulse: Math.random() * TAU,
+    glow: 0
+  };
+  world.planets.push(p);
+  return p;
+}
+
+function addPair(x, y) {
+  const sep = rand(96, 148);
+  const t = PLANET_TYPES[0];
+  const a = addPlanet(x, y, t, rand(36, 54));
+  const b = addPlanet(x, y, t, rand(36, 54));
+  a.pair = b.pair = true;
+  a.moving = b.moving = true;
+  const pr = { cx: x, cy: y, sep: sep, ang: rand(0, TAU),
+               vel: rand(0.34, 0.62) * (Math.random() < 0.5 ? -1 : 1), a: a, b: b };
+  world.pairs.push(pr);
+  stepPair(pr, 0);
+  return pr;
+}
+
+function stepPair(pr, dt) {
+  pr.ang += pr.vel * dt;
+  const cx = Math.cos(pr.ang) * pr.sep, cy = Math.sin(pr.ang) * pr.sep;
+  pr.a.x = pr.cx + cx; pr.a.y = pr.cy + cy;
+  pr.b.x = pr.cx - cx; pr.b.y = pr.cy - cy;
+}
+
+// Cyan means safe and red means lethal — the wake already taught that, so the
+// rails reuse it rather than inventing a third signal.
+function padAt(x, side) {
+  for (const q of world.pads) {
+    if (q.side === side && x >= q.x && x <= q.x + q.w) return q;
+  }
+  return null;
+}
+
+function generatePads(toX) {
+  let guard = 0;
+  while (world.nextPadX < toX && guard++ < 200) {
+    const w = rand(380, 680);
+    world.pads.push({ x: world.nextPadX, w: w, side: Math.random() < 0.5 ? -1 : 1, hit: 0 });
+    world.nextPadX += w + rand(700, 1400);
+  }
+}
+
+function rockShape() {
+  const n = randi(7, 10), a = [];
+  for (let i = 0; i < n; i++) a.push(rand(0.68, 1.32));
+  return a;
+}
+
+// A debris wall spanning the corridor with a single gap. This is what stops a
+// player coasting in a straight line without ever touching the controls.
+function addBarrier(x, gapY, gapH) {
+  const step = 44;
+  for (let y = -HALF_H + 18; y <= HALF_H - 18; y += step) {
+    if (Math.abs(y - gapY) < gapH / 2) continue;
+    world.rocks.push({
+      x: x + rand(-9, 9), y: y, r: rand(23, 29),
+      spin: rand(0, TAU), spinRate: rand(-0.7, 0.7),
+      drift: 0, barrier: true, pts: rockShape()
+    });
+  }
+  world.gates.push({ x: x, y: gapY, h: gapH });
+}
+
+function clearOf(x, y, r) {
+  for (const p of world.planets) {
+    const dx = p.x - x, dy = p.y - y;
+    if (dx * dx + dy * dy < (p.cap + r + 40) * (p.cap + r + 40)) return false;
+  }
+  return true;
+}
+
+function generateAhead(toX, metres) {
+  const tighten = Math.min(150, metres * 0.055);
+  let guard = 0;
+  while (world.genX < toX && guard++ < 400) {
+    const gap = rand(0.17, 0.27) * view.wW - tighten;
+    world.genX += Math.max(165, gap);
+    const x = world.genX;
+
+    // Hazard rocks appear once the player has found their feet.
+    if (metres > 260 && Math.random() < Math.min(0.3, 0.07 + metres * 0.00016)) {
+      const y = rand(-HALF_H + 90, HALF_H - 90);
+      if (clearOf(x, y, 60)) {
+        world.rocks.push({
+          x: x, y: y, r: rand(20, 34),
+          spin: rand(0, TAU), spinRate: rand(-1.1, 1.1),
+          drift: rand(-26, 26),
+          pts: (function () {
+            const n = randi(7, 10), a = [];
+            for (let i = 0; i < n; i++) a.push(rand(0.68, 1.32));
+            return a;
+          })()
+        });
+        continue;
+      }
+    }
+
+    // Due a wall? A wall needs a body to orbit on BOTH sides: one to aim with
+    // in the run-up, one to catch on the far side. Without them the gap is a
+    // coin flip on approach and a dead end once you're through.
+    if (world.genX >= world.nextBarrier) {
+      const firstEver = world.nextBarrier === 940;
+      const bx = world.genX + 560;
+      const gapH = clamp(300 - zoneIndexAt(metres) * 20, 190, 300);
+      const edge = HALF_H - gapH * 0.5 - 30;
+      let gapY;
+      if (firstEver) {
+        const side = Math.random() < 0.5 ? -1 : 1;
+        gapY = side * rand(gapH * 0.5 + 60, Math.max(gapH * 0.5 + 61, edge));
+      } else {
+        gapY = rand(-edge, edge);
+      }
+
+      // A wall without a body to aim from is a coin flip. Try a few spots
+      // rather than silently skipping — the first wall used to lose its
+      // helper to the opening planet's capture ring and became unfair.
+      const helperY = clamp(gapY * 0.55, -HALF_H + 170, HALF_H - 170);
+      let placedHelper = false;
+      for (const hx of [bx - 430, bx - 520, bx - 350, bx - 610]) {
+        if (clearOf(hx, helperY, 110)) {
+          addPlanet(hx, helperY, PLANET_TYPES[0], rand(46, 64));
+          placedHelper = true; break;
+        }
+      }
+
+      addBarrier(bx, gapY, gapH);
+
+      const landY = clamp(gapY * 0.7 + rand(-80, 80), -HALF_H + 170, HALF_H - 170);
+      let landX = bx + 440;
+      for (const lx of [bx + 440, bx + 530, bx + 360, bx + 620]) {
+        if (clearOf(lx, landY, 110)) {
+          addPlanet(lx, landY, PLANET_TYPES[0], rand(46, 64));
+          landX = lx; break;
+        }
+      }
+      world.side = landY < 0 ? 1 : -1;
+
+      world.nextBarrier = bx + rand(2900, 4200);
+      world.genX = landX + 280;
+      continue;
+    }
+
+    // Power-ups start appearing once the player has learned the base rules,
+    // and get more generous the deeper you go.
+    const zp = zoneIndexAt(metres);
+    const powerChance = 0.13 + Math.min(0.09, zp * 0.024);
+    if (metres > 380 && Math.random() < powerChance) {
+      const y = rand(-HALF_H + 110, HALF_H - 110);
+      if (clearOf(x, y, 70)) {
+        const kind = (zp >= 2 && Math.random() < 0.45) ? 'shield' : pick(POWER_KEYS);
+        world.powers.push({
+          x: x, y: y, kind: kind,
+          spin: rand(0, TAU), bob: Math.random() * TAU, got: false
+        });
+        continue;
+      }
+    }
+
+    // Bodies alternate rails, so every sling crosses the corridor.
+    const type = rollType();
+    const margin = type.rMax + 88;
+    const y = world.side * rand(Math.min(HALF_H * 0.25, HALF_H - margin), HALF_H - margin);
+    if (!clearOf(x, y, type.rMax)) continue;
+    // BINARY REACH (and The Deep): paired bodies, so the frame rotates under you.
+    const zb = zoneIndexAt(metres);
+    if ((zb === 2 || zb === 4) && Math.random() < featureChance(metres)) {
+      const lim = HALF_H - 260;
+      if (lim > 60) {
+        const py = world.side * rand(Math.min(lim, HALF_H * 0.2), lim);
+        if (clearOf(x, py, 250)) { addPair(x, py); world.side = -world.side; continue; }
+      }
+    }
+
+    const p = addPlanet(x, y, type);
+    world.side = -world.side;
+
+    // EMBERFALL (and The Deep): stars that collapse while you ride them.
+    // They only ever detonate with the ship still attached, so the death is
+    // always self-inflicted — never a blast you couldn't have avoided.
+    const ze = zoneIndexAt(metres);
+    if ((ze === 3 || ze === 4) && Math.random() < featureChance(metres)) {
+      p.ember = true; p.r0 = p.r; p.col = 0;
+    }
+
+    // THE SCATTER (and The Deep): bodies drift, so you must lead your target.
+    const zi = zoneIndexAt(metres);
+    if ((zi === 1 || zi === 4) && Math.random() < featureChance(metres)) {
+      const dir = Math.random() < 0.5 ? -1 : 1;
+      p.vy = dir * rand(20, 42);
+      p.moving = true;
+    }
+
+    // Reward orbs strung along a tempting orbit radius.
+    if (Math.random() < 0.72) {
+      const orbR = p.r + rand(34, 96);
+      const a0 = rand(0, TAU);
+      const n = randi(3, 5);
+      const arc = rand(0.7, 1.5);
+      for (let i = 0; i < n; i++) {
+        const a = a0 + (i / (n - 1) - 0.5) * arc;
+        world.orbs.push({ x: p.x + Math.cos(a) * orbR, y: p.y + Math.sin(a) * orbR, got: false, bob: Math.random() * TAU });
+      }
+    }
+  }
+}
+
+function cullBehind(x) {
+  // Pairs are culled as a unit by their centre; halving one would strand the other.
+  for (let i = world.pairs.length - 1; i >= 0; i--) {
+    const pr = world.pairs[i];
+    if (pr.cx >= x - 320) continue;
+    world.pairs.splice(i, 1);
+    for (const q of [pr.a, pr.b]) {
+      const k = world.planets.indexOf(q);
+      if (k >= 0) world.planets.splice(k, 1);
+    }
+  }
+  for (let i = world.planets.length - 1; i >= 0; i--) {
+    if (world.planets[i].pair) continue;
+    if (world.planets[i].x < x) world.planets.splice(i, 1);
+  }
+  for (let i = world.orbs.length - 1; i >= 0; i--)    if (world.orbs[i].x    < x) world.orbs.splice(i, 1);
+  for (let i = world.rocks.length - 1; i >= 0; i--)   if (world.rocks[i].x   < x) world.rocks.splice(i, 1);
+  for (let i = world.powers.length - 1; i >= 0; i--)  if (world.powers[i].x  < x) world.powers.splice(i, 1);
+  for (let i = world.gates.length - 1; i >= 0; i--)   if (world.gates[i].x   < x) world.gates.splice(i, 1);
+  for (let i = world.pads.length - 1; i >= 0; i--)    if (world.pads[i].x + world.pads[i].w < x) world.pads.splice(i, 1);
+}
+
+/* =========================================================
+   8. GAME STATE
+   ========================================================= */
+
+const ship = {
+  x: 0, y: 0, angle: 0, speed: BASE_SPEED,
+  attached: null, orbitAngle: 0, orbitRadius: 0, orbitDir: 1, lockout: null,
+  trail: [], trailT: 0,
+  grazing: false, loopArc: 0
+};
+
+Object.assign(run, {
+  metres: 0, combo: 0, freeTime: 0,
+  shield: false, coolant: 0, overdrive: 0,
+  nextMile: MILESTONE,
+  zone: 0, zonePrev: 0, zoneFade: 1, deepCycle: 0,
+  rampM: 0, rampHoldUntil: 0,
+  newBestHit: false,
+  best: parseInt(store('perigee.best') || '0', 10) || 0,
+  bestDist: parseInt(store('perigee.bestdist') || '0', 10) || 0
+});
+
+const cam = { x: 0, y: 0 };
+
+function multiplier() {
+  const m = Math.min(5, 1 + Math.floor(run.combo / 3) * 0.5);
+  return run.overdrive > 0 ? m * 2 : m;
+}
+
+/* =========================================================
+   10. SHIP PHYSICS
+   ========================================================= */
+
+function tryAttach() {
+  let best = null, bestD = Infinity;
+  for (const p of world.planets) {
+    const dx = ship.x - p.x, dy = ship.y - p.y;
+    const d2 = dx * dx + dy * dy;
+    if (p === ship.lockout) continue;
+    if (d2 < p.cap * p.cap && d2 > (p.r + SHIP_R) * (p.r + SHIP_R) && d2 < bestD) { bestD = d2; best = p; }
+  }
+  if (!best) return;
+
+  const dx = ship.x - best.x, dy = ship.y - best.y;
+  const vx = Math.cos(ship.angle) * ship.speed;
+  const vy = Math.sin(ship.angle) * ship.speed;
+
+  // The orbit must fit inside the corridor, or the catch is refused outright.
+  const minR = best.r + SHIP_R + 6;
+  const maxR = HALF_H - SHIP_R - 8 - Math.abs(best.y);
+  if (maxR < minR) return;
+  const r = clamp(Math.sqrt(dx * dx + dy * dy), minR, maxR);
+
+  ship.attached = best; haptic(12);
+  ship.orbitRadius = r;
+  ship.orbitAngle = Math.atan2(dy, dx);
+  // Snap onto the clamped ring so position and physics never disagree.
+  ship.x = best.x + Math.cos(ship.orbitAngle) * r;
+  ship.y = best.y + Math.sin(ship.orbitAngle) * r;
+  ship.orbitDir = (dx * vy - dy * vx) >= 0 ? 1 : -1;
+  ship.grazing = r <= best.r * GRAZE_FACTOR;
+  ship.loopArc = 0;
+
+  best.glow = 1;
+  run.engaged = true;
+  run.hitstop = 0.045;
+  burst(ship.x, ship.y, 12, { color: '#5CE1E6', maxSpeed: 170, maxLife: 0.42 });
+  Sound.latch();
+  if (ship.grazing) { Sound.graze(); burst(ship.x, ship.y, 8, { color: '#F2A15C', maxSpeed: 210 }); }
+}
+
+function detach() {
+  const p = ship.attached;
+  if (!p) return;
+  ship.angle = ship.orbitAngle + ship.orbitDir * Math.PI / 2;
+  ship.attached = null;
+  ship.lockout = p;
+  if (p.ember && p.col > 0) p.spent = true;
+
+  run.combo++;
+  run.bestChain = Math.max(run.bestChain, run.combo);
+  run.freeTime = 0;
+
+  const mult = multiplier();
+  let pts = ship.grazing ? 120 : 50;
+  if (p.type === 'dense') pts += 40;
+  if (p.type === 'pulsar') {
+    pts += 150;
+    ship.speed = Math.min(MAX_SPEED + 90, ship.speed * 1.16);
+    burst(ship.x, ship.y, 26, { color: '#7CFFD4', maxSpeed: 340, maxLife: 0.8 });
+    run.flash = 0.35;
+  }
+  run.score += Math.round(pts * mult);
+
+  burst(ship.x, ship.y, 14, {
+    color: ship.grazing ? '#F2A15C' : '#B47CFF',
+    angle: ship.angle + Math.PI, spread: 0.75, maxSpeed: 300, maxLife: 0.5
+  });
+  Sound.launch(Math.min(4, run.combo));
+  ship.grazing = false;
+}
+
+function updateShip(dt) {
+  // Speed ramps with distance travelled.
+  const target = Math.min(MAX_SPEED, BASE_SPEED + run.rampM * SPEED_RAMP)
+               * SPEED_SCALE * (run.overdrive > 0 ? 1.22 : 1);
+  ship.speed = lerp(ship.speed, Math.max(target, BASE_SPEED), 1 - Math.exp(-0.8 * dt));
+
+  if (ship.attached) {
+    if (!input.held) { detach(); }
+    else {
+      const p = ship.attached;
+      // Planet may have been culled behind the camera.
+      if (world.planets.indexOf(p) === -1) { detach(); }
+      else {
+        if (p.ember && !p.spent) {
+          const before = p.r;
+          p.col = Math.min(1, p.col + dt / EMBER_TIME);
+          if (p.col >= 1) {
+            const px = p.x, py = p.y, pr = p.r;
+            detonate(p);
+            ship.attached = null;
+            die('Caught in the collapse', { x: px, y: py, r: pr });
+            return;
+          }
+          p.r = p.r0 * (1 - 0.58 * p.col);
+          p.cap = p.r + CAP_PAD;
+          // Follow the surface inward — tighter orbit, better perigee bonus —
+          // but never closer than the ship's own radius allows.
+          const dr = before - p.r;
+          ship.orbitRadius = Math.max(p.r + SHIP_R + 10, ship.orbitRadius - dr * 0.7);
+          ship.grazing = ship.orbitRadius <= p.r * GRAZE_FACTOR;
+          if (Math.random() < dt * 26) {
+            burst(p.x + rand(-p.r, p.r), p.y + rand(-p.r, p.r), 1,
+                  { color: '#FFC24D', maxSpeed: 90, maxLife: 0.6 });
+          }
+        }
+
+        if (p.moving) {
+          const maxR = HALF_H - SHIP_R - 8 - Math.abs(p.y);
+          const minR = p.r + SHIP_R + 6;
+          if (ship.orbitRadius > maxR) ship.orbitRadius = Math.max(minR, maxR);
+        }
+        const w = (ship.speed / ship.orbitRadius) * ship.orbitDir;
+        ship.orbitAngle += w * dt;
+        ship.loopArc += Math.abs(w) * dt;
+        ship.x = p.x + Math.cos(ship.orbitAngle) * ship.orbitRadius;
+        ship.y = p.y + Math.sin(ship.orbitAngle) * ship.orbitRadius;
+        ship.angle = ship.orbitAngle + ship.orbitDir * Math.PI / 2;
+        p.glow = 1;
+        if (ship.grazing && Math.random() < dt * 14) {
+          burst(ship.x, ship.y, 1, { color: '#F2A15C', maxSpeed: 60, maxLife: 0.4 });
+        }
+      }
+    }
+  }
+
+  if (!ship.attached) {
+    // Escaping the last planet's field re-arms it as a target.
+    if (ship.lockout) {
+      const lx = ship.x - ship.lockout.x, ly = ship.y - ship.lockout.y;
+      const cap = ship.lockout.cap + 12;
+      if (lx * lx + ly * ly > cap * cap || world.planets.indexOf(ship.lockout) === -1) ship.lockout = null;
+    }
+    if (input.held) tryAttach();
+    if (!ship.attached) {
+      ship.x += Math.cos(ship.angle) * ship.speed * dt;
+      ship.y += Math.sin(ship.angle) * ship.speed * dt;
+      run.freeTime += dt;
+      if (run.freeTime > COMBO_WINDOW && run.combo > 0) run.combo = 0;
+    }
+  }
+
+  // Wake
+  ship.trailT += dt;
+  while (ship.trailT >= TRAIL_STEP) {
+    ship.trailT -= TRAIL_STEP;
+    ship.trail.push({ x: ship.x, y: ship.y, age: 0 });
+  }
+  for (let i = ship.trail.length - 1; i >= 0; i--) {
+    ship.trail[i].age += dt;
+    if (ship.trail[i].age > TRAIL_LIFE) ship.trail.splice(i, 1);
+  }
+}
+
+/* =========================================================
+   11. COLLISION
+   ========================================================= */
+
+function checkCollisions() {
+  if (run.invuln > 0) return;
+
+  // Corridor rails — elastic where a pad runs, lethal everywhere else.
+  if (ship.y < -HALF_H + SHIP_R) {
+    const q = padAt(ship.x, -1);
+    if (q) bounce(q, -1); else { die('Hit the rail', null); return; }
+  } else if (ship.y > HALF_H - SHIP_R) {
+    const q = padAt(ship.x, 1);
+    if (q) bounce(q, 1); else { die('Hit the rail', null); return; }
+  }
+
+  // Fell off the back
+  if (ship.x < cam.x - view.wW * 0.5 + SHIP_R) { die('Left behind'); return; }
+
+  // Planet surfaces
+  for (const p of world.planets) {
+    const dx = ship.x - p.x, dy = ship.y - p.y;
+    const rr = p.r + SHIP_R;
+    if (dx * dx + dy * dy < rr * rr) { die('Impact', p); return; }
+  }
+
+  // Asteroids
+  for (const k of world.rocks) {
+    const dx = ship.x - k.x, dy = ship.y - k.y;
+    const rr = k.r + SHIP_R;
+    if (dx * dx + dy * dy < rr * rr) { die('Impact', k); return; }
+  }
+
+  // Own wake — the signature rule. Coolant suspends it.
+  if (run.coolant <= 0) {
+    const rr = SHIP_R + TRAIL_R;
+    const rr2 = rr * rr;
+    for (let i = 0; i < ship.trail.length; i++) {
+      const t = ship.trail[i];
+      if (t.age < TRAIL_ARM) continue;
+      const dx = ship.x - t.x, dy = ship.y - t.y;
+      if (dx * dx + dy * dy < rr2) { die('Crossed your own wake'); return; }
+    }
+  }
+
+  // Power-ups
+  for (const pw of world.powers) {
+    if (pw.got) continue;
+    const dx = ship.x - pw.x, dy = ship.y - pw.y;
+    if (dx * dx + dy * dy < 34 * 34) { pw.got = true; grantPower(pw.kind, pw.x, pw.y); }
+  }
+
+  // Orbs
+  for (const o of world.orbs) {
+    if (o.got) continue;
+    const dx = ship.x - o.x, dy = ship.y - o.y;
+    if (dx * dx + dy * dy < 26 * 26) {
+      o.got = true;
+      run.score += Math.round(25 * multiplier());
+      burst(o.x, o.y, 9, { color: '#7CFFD4', maxSpeed: 150, maxLife: 0.45 });
+      Sound.orb(Math.min(5, run.combo));
+    }
+  }
+}
+
+// The Deep darkens a step every loop; floor keeps it readable.
+function deepDarken() {
+  return run.zone === 4 ? Math.max(0.5, 1 - run.deepCycle * 0.16) : 1;
+}
+
+function enterZone(z) {
+  run.zonePrev = run.zone;
+  run.zone = z;
+  run.zoneFade = 0;
+  run.rampHoldUntil = run.metres + RAMP_HOLD;   // one new variable at a time
+  run.hitstop = 0.09;
+  run.flash = 0.34;
+  const acc = ZONES[z].accent;
+  shockwave(ship.x, ship.y, { maxR: view.wW * 0.88, life: 1.15, color: acc, width: 9 });
+  shockwave(ship.x, ship.y, { maxR: view.wW * 0.60, life: 1.00, color: acc, width: 5, delay: 0.14 });
+  burst(ship.x, ship.y, 30, { color: acc, maxSpeed: 340, maxLife: 1.0 });
+  banner(ZONES[z].name, acc);
+  Sound.zone();
+}
+
+function bounce(q, side) {
+  const y = side * (HALF_H - SHIP_R - 2);
+  ship.y = y;
+  if (ship.attached) detach();
+  // Reflect the vertical component; forward travel is untouched.
+  ship.angle = -ship.angle;
+  q.hit = 1;
+  run.shake = Math.max(run.shake, 0.35);
+  run.freeTime = 0;                 // a bounce is play, so it keeps your chain alive
+  if (run.engaged) run.score += Math.round(15 * multiplier());
+  shockwave(ship.x, y, { maxR: 190, life: 0.55, color: '#5CE1E6', width: 5 });
+  burst(ship.x, y, 12, { color: '#5CE1E6', angle: -side * Math.PI / 2, spread: 1.0,
+                         maxSpeed: 260, maxLife: 0.5 });
+  Sound.bounce(); haptic(25);
+}
+
+function detonate(p) {
+  shockwave(p.x, p.y, { maxR: 420, life: 0.9,  color: '#FFC24D', width: 9 });
+  shockwave(p.x, p.y, { maxR: 280, life: 0.72, color: '#FF6B3D', width: 5, delay: 0.09 });
+  burst(p.x, p.y, 36, { color: '#FFC24D', maxSpeed: 390, maxLife: 1.0 });
+  const k = world.planets.indexOf(p);
+  if (k >= 0) world.planets.splice(k, 1);
+}
+
+function grantPower(kind, x, y) {
+  const P = POWERS[kind];
+  if (kind === 'shield') run.shield = true;
+  else run[kind] = P.dur;
+  shockwave(x, y, { maxR: 270, life: 0.7, color: P.color, width: 5 });
+  burst(x, y, 18, { color: P.color, maxSpeed: 240, maxLife: 0.7 });
+  banner(P.label, P.color);
+  run.flash = 0.16;
+  Sound.power(); haptic(18);
+}
+
+/* =========================================================
+   12. UI — Perigee's own
+   ========================================================= */
+
+let sessionSeenHint = false;
+
+for (const id of ['btnSound', 'btnPause']) {
+  el(id).addEventListener('keydown', e => {
+    if (e.code === 'Enter' || e.code === 'Space') { e.preventDefault(); el(id).click(); }
+  });
+}
+
+/* =========================================================
+   13. RENDER
+   ========================================================= */
+
+function worldToScreen() {
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  const sx = run.shake > 0 ? rand(-1, 1) * run.shake * 14 : 0;
+  const sy = run.shake > 0 ? rand(-1, 1) * run.shake * 14 : 0;
+  ctx.translate(view.w / 2 + sx, view.h / 2 + sy);
+  ctx.scale(view.scale, view.scale);
+  ctx.translate(-cam.x, -cam.y);
+}
+
+function drawBackground() {
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  const g = ctx.createRadialGradient(view.w * 0.5, view.h * 0.1, 0, view.w * 0.5, view.h * 0.5, view.h * 1.25);
+  g.addColorStop(0, css(pal.bg[0]));
+  g.addColorStop(0.45, css(pal.bg[1]));
+  g.addColorStop(1, css(pal.bg[2]));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, view.w, view.h);
+}
+
+function drawStars(t) {
+  const cA = css(pal.sa), cB = css(pal.sb);
+  ctx.save();
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  for (const layer of starLayers) {
+    const ox = -cam.x * layer.depth;
+    const oy = -cam.y * layer.depth;
+    const startX = Math.floor((-ox) / STAR_TILE) - 1;
+    const startY = Math.floor((-oy) / STAR_TILE) - 1;
+    const cols = Math.ceil(view.w / STAR_TILE) + 2;
+    const rows = Math.ceil(view.h / STAR_TILE) + 2;
+    for (let cx = 0; cx < cols; cx++) {
+      for (let cy = 0; cy < rows; cy++) {
+        const bx = (startX + cx) * STAR_TILE + ox;
+        const by = (startY + cy) * STAR_TILE + oy;
+        for (const s of layer.pts) {
+          const x = bx + s.x, y = by + s.y;
+          if (x < -6 || x > view.w + 6 || y < -6 || y > view.h + 6) continue;
+          const tw = 0.65 + 0.35 * Math.sin(t * 1.6 + s.tw);
+          ctx.globalAlpha = layer.alpha * tw;
+          ctx.fillStyle = s.tier === 1 ? cA : (s.tier === 2 ? cB : '#FFFFFF');
+          ctx.beginPath();
+          ctx.arc(x, y, s.r, 0, TAU);
+          ctx.fill();
+        }
+      }
+    }
+  }
+  ctx.globalAlpha = 1;
+  ctx.restore();
+}
+
+function drawOutOfBounds() {
+  const left = cam.x - view.wW / 2 - 60, right = cam.x + view.wW / 2 + 60;
+  const top  = cam.y - view.wH / 2 - 60, bot   = cam.y + view.wH / 2 + 60;
+  if (top >= -HALF_H && bot <= HALF_H) return;
+  ctx.fillStyle = css(pal.oob, 0.2);   // a faint dim past the rail, not a cut: 0.62 read as a cropped screen
+  if (top < -HALF_H) ctx.fillRect(left, top, right - left, -HALF_H - top);
+  if (bot >  HALF_H) ctx.fillRect(left, HALF_H, right - left, bot - HALF_H);
+}
+
+function drawBestMarker(t) {
+  if (!run.bestDist || run.awaitFirst) return;
+  const x = run.bestDist * 10;
+  if (x < cam.x - view.wW * 0.55 || x > cam.x + view.wW * 0.6) return;
+  const passed = run.metres > run.bestDist;
+  ctx.strokeStyle = passed ? 'rgba(242,161,92,0.28)' : 'rgba(242,161,92,0.62)';
+  ctx.lineWidth = 2;
+  ctx.setLineDash([12, 12]);
+  ctx.lineDashOffset = -t * 26;
+  ctx.beginPath(); ctx.moveTo(x, -HALF_H); ctx.lineTo(x, HALF_H); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = passed ? 'rgba(242,161,92,0.4)' : 'rgba(242,161,92,0.9)';
+  ctx.font = '600 22px ui-monospace, Menlo, monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('BEST', x, -HALF_H + 34);
+  ctx.textAlign = 'left';
+}
+
+function drawRails(t) {
+  const left = cam.x - view.wW / 2 - 40;
+  const right = cam.x + view.wW / 2 + 40;
+
+  for (const dir of [-1, 1]) {
+    const y = dir * HALF_H;
+    // Glow band
+    const g = ctx.createLinearGradient(0, y - dir * 60, 0, y);
+    g.addColorStop(0, 'rgba(255,77,109,0)');
+    g.addColorStop(1, 'rgba(255,77,109,0.16)');
+    ctx.fillStyle = g;
+    ctx.fillRect(left, Math.min(y, y - dir * 60), right - left, 60);
+
+    // Hard line
+    ctx.strokeStyle = 'rgba(255,77,109,0.7)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(left, y); ctx.lineTo(right, y); ctx.stroke();
+
+    // Chevrons scrolling with the run
+    ctx.strokeStyle = 'rgba(255,77,109,0.34)';
+    ctx.lineWidth = 2;
+    const period = 90;
+    const off = (t * 70) % period;
+    const x0 = Math.floor(left / period) * period - off;
+    ctx.beginPath();
+    for (let x = x0; x < right; x += period) {
+      ctx.moveTo(x, y);
+      ctx.lineTo(x + 22, y - dir * 15);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawPlanet(p, t) {
+  // Gravity capture field
+  const inRange = p.glow > 0.01;
+  const pulse = 0.5 + 0.5 * Math.sin(t * 2.1 + p.pulse);
+  ctx.strokeStyle = 'rgba(160, 200, 255,' + (0.07 + p.glow * 0.32 + pulse * 0.04) + ')';
+  ctx.lineWidth = 1.6;
+  ctx.setLineDash([9, 13]);
+  ctx.lineDashOffset = -t * (inRange ? 42 : 16);
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.cap, 0, TAU);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // Halo
+  if (p.glow > 0.01) {
+    ctx.globalCompositeOperation = 'lighter';
+    const hg = ctx.createRadialGradient(p.x, p.y, p.r * 0.7, p.x, p.y, p.cap);
+    hg.addColorStop(0, 'rgba(120,190,255,' + (0.2 * p.glow) + ')');
+    hg.addColorStop(1, 'rgba(120,190,255,0)');
+    ctx.fillStyle = hg;
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.cap, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  // Ring (giants)
+  if (p.ring) {
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(p.spin);
+    ctx.scale(1, 0.28);
+    ctx.strokeStyle = 'rgba(201,140,245,0.5)';
+    ctx.lineWidth = 7;
+    ctx.beginPath(); ctx.arc(0, 0, p.r * 1.52, 0, TAU); ctx.stroke();
+    ctx.strokeStyle = 'rgba(201,140,245,0.22)';
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, p.r * 1.78, 0, TAU); ctx.stroke();
+    ctx.restore();
+  }
+
+  // Instability ring — the tell that this star will collapse under you.
+  if (p.ember) {
+    const urg = p.spent ? 0 : p.col;
+    ctx.strokeStyle = p.spent ? 'rgba(140,120,110,0.28)'
+                              : 'rgba(255,194,77,' + (0.4 + urg * 0.55) + ')';
+    ctx.lineWidth = 2 + urg * 2.5;
+    ctx.setLineDash([5, 7]);
+    ctx.lineDashOffset = -t * (70 + urg * 420);
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r + 13, 0, TAU); ctx.stroke();
+    ctx.setLineDash([]);
+    if (urg > 0) {
+      ctx.globalCompositeOperation = 'lighter';
+      const eg = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.r * (1.6 + urg));
+      eg.addColorStop(0, 'rgba(255,200,90,' + (0.32 * urg) + ')');
+      eg.addColorStop(1, 'rgba(255,120,40,0)');
+      ctx.fillStyle = eg;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1.6 + urg), 0, TAU); ctx.fill();
+      ctx.globalCompositeOperation = 'source-over';
+    }
+  }
+
+  // Drift chevrons — the tell that this body is moving.
+  if (p.vy) {
+    const d = p.vy > 0 ? 1 : -1;
+    ctx.strokeStyle = 'rgba(255,255,255,0.30)';
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 2; i++) {
+      const off = p.r + 16 + i * 9;
+      ctx.beginPath();
+      ctx.moveTo(p.x - 9, p.y + d * off);
+      ctx.lineTo(p.x, p.y + d * (off + 7));
+      ctx.lineTo(p.x + 9, p.y + d * off);
+      ctx.stroke();
+    }
+  }
+
+  // Body. Colour comes from the live palette, not from spawn time: the
+  // generator runs a screen ahead, so bodies born just before a zone boundary
+  // would otherwise carry the old zone's colours into the new one.
+  const cc = pal.cols[p.type] || pal.cols.std;
+  const core = css(cc[0]), edge = css(cc[1]);
+  const bg = ctx.createRadialGradient(
+    p.x - p.r * 0.34, p.y - p.r * 0.36, p.r * 0.08,
+    p.x, p.y, p.r
+  );
+  bg.addColorStop(0, core);
+  bg.addColorStop(0.62, core);
+  bg.addColorStop(1, edge);
+  ctx.fillStyle = bg;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r, 0, TAU); ctx.fill();
+
+  // Terminator shading
+  ctx.fillStyle = 'rgba(3,5,15,0.34)';
+  ctx.beginPath();
+  ctx.arc(p.x, p.y, p.r, -Math.PI * 0.25, Math.PI * 0.72);
+  ctx.fill();
+
+  // Rim light
+  ctx.strokeStyle = 'rgba(255,255,255,0.22)';
+  ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.r - 0.7, 0, TAU); ctx.stroke();
+
+  // Pulsar core beacon
+  if (p.type === 'pulsar') {
+    ctx.globalCompositeOperation = 'lighter';
+    const b = 0.4 + 0.6 * Math.abs(Math.sin(t * 3.4 + p.pulse));
+    ctx.fillStyle = 'rgba(124,255,212,' + (0.35 * b) + ')';
+    ctx.beginPath(); ctx.arc(p.x, p.y, p.r * (1.1 + 0.25 * b), 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+
+function drawRock(k) {
+  ctx.save();
+  ctx.translate(k.x, k.y);
+  ctx.rotate(k.spin);
+  ctx.beginPath();
+  const n = k.pts.length;
+  for (let i = 0; i < n; i++) {
+    const a = (i / n) * TAU;
+    const r = k.r * k.pts[i];
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+  }
+  ctx.closePath();
+  ctx.fillStyle = '#141A33';
+  ctx.fill();
+  ctx.strokeStyle = 'rgba(255,77,109,0.85)';
+  ctx.lineWidth = 2.2;
+  ctx.stroke();
+  ctx.restore();
+}
+
+function drawOrb(o, t) {
+  if (o.got) return;
+  const b = Math.sin(t * 3 + o.bob);
+  const r = 7 + b * 1.4;
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.fillStyle = 'rgba(124,255,212,0.2)';
+  ctx.beginPath(); ctx.arc(o.x, o.y, r * 2.4, 0, TAU); ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillStyle = '#7CFFD4';
+  ctx.beginPath(); ctx.arc(o.x, o.y, r, 0, TAU); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.beginPath(); ctx.arc(o.x - r * 0.25, o.y - r * 0.25, r * 0.34, 0, TAU); ctx.fill();
+}
+
+function drawPower(pw, t) {
+  if (pw.got) return;
+  const P = POWERS[pw.kind];
+  const b = Math.sin(t * 2.6 + pw.bob);
+  const r = 21 + b * 2.2;
+  ctx.save();
+  ctx.translate(pw.x, pw.y);
+
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createRadialGradient(0, 0, 0, 0, 0, r * 3.4);
+  g.addColorStop(0, P.color + '77');
+  g.addColorStop(0.45, P.color + '33');
+  g.addColorStop(1, P.color + '00');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(0, 0, r * 3.4, 0, TAU); ctx.fill();
+
+  // Counter-rotating dashed ring — motion is what makes it catch the eye.
+  ctx.strokeStyle = P.color;
+  ctx.globalAlpha = 0.55;
+  ctx.lineWidth = 1.6;
+  ctx.setLineDash([6, 9]);
+  ctx.lineDashOffset = t * 34;
+  ctx.beginPath(); ctx.arc(0, 0, r * 1.85, 0, TAU); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+
+  // Rotating hex frame — a silhouette no planet or orb shares.
+  ctx.rotate(t * 0.85 + pw.spin);
+  ctx.strokeStyle = P.color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * TAU;
+    const x = Math.cos(a) * r, y = Math.sin(a) * r;
+    if (i) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+  }
+  ctx.closePath(); ctx.stroke();
+  ctx.rotate(-(t * 0.85 + pw.spin));
+
+  // Glyph: ring / bar / arrow — readable at thumbnail size.
+  ctx.fillStyle = P.color;
+  ctx.strokeStyle = P.color;
+  if (pw.kind === 'shield') {
+    ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.arc(0, 0, r * 0.42, 0, TAU); ctx.stroke();
+  } else if (pw.kind === 'coolant') {
+    ctx.fillRect(-r * 0.46, -r * 0.14, r * 0.92, r * 0.28);
+  } else {
+    ctx.beginPath();
+    ctx.moveTo(r * 0.46, 0); ctx.lineTo(-r * 0.3, r * 0.4); ctx.lineTo(-r * 0.3, -r * 0.4);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+}
+
+function drawTrail() {
+  const n = ship.trail.length;
+  if (n < 2) return;
+  ctx.lineCap = 'round';
+  ctx.lineJoin = 'round';
+
+  const bandOf = pt => pt.age >= TRAIL_ARM ? 2 : (pt.age >= TRAIL_ARM * 0.72 ? 1 : 0);
+  const chilled = run.coolant > 0;
+  const BLOOM = ['rgba(92,225,230,0.085)', 'rgba(242,161,92,0.085)',
+                 chilled ? 'rgba(180,124,255,0.10)' : 'rgba(255,77,109,0.10)'];
+  const CORE  = ['rgba(92,225,230,', 'rgba(242,161,92,',
+                 chilled ? 'rgba(180,124,255,' : 'rgba(255,90,122,'];
+
+  // Pass 1 — soft bloom, stroked as ONE continuous path per band. Drawing it
+  // as a single path (rather than per-segment) is what stops every sample
+  // point from stacking its own round cap into a white bead.
+  ctx.globalCompositeOperation = 'lighter';
+  ctx.lineWidth = TRAIL_R * 3.4;
+  for (let band = 0; band < 3; band++) {
+    ctx.strokeStyle = BLOOM[band];
+    ctx.beginPath();
+    let open = false;
+    for (let i = 0; i < n; i++) {
+      const pt = ship.trail[i];
+      if (bandOf(pt) !== band) { open = false; continue; }
+      if (open) ctx.lineTo(pt.x, pt.y);
+      else { ctx.moveTo(pt.x, pt.y); open = true; }
+    }
+    ctx.stroke();
+  }
+
+  // Pass 2 — the solid core, also stroked as one continuous path per band.
+  // Constant width and opacity per band is deliberate: the wake is equally
+  // lethal at every age, so it must not read as fading out.
+  ctx.globalCompositeOperation = 'source-over';
+  const WIDTH = [TRAIL_R * 1.5, TRAIL_R * 1.6, TRAIL_R * 1.9];
+  for (let band = 0; band < 3; band++) {
+    ctx.strokeStyle = CORE[band] + '0.92)';
+    ctx.lineWidth = WIDTH[band];
+    ctx.beginPath();
+    let open = false;
+    for (let i = 0; i < n; i++) {
+      const pt = ship.trail[i];
+      if (bandOf(pt) !== band) { open = false; continue; }
+      if (open) ctx.lineTo(pt.x, pt.y);
+      else { ctx.moveTo(pt.x, pt.y); open = true; }
+    }
+    ctx.stroke();
+  }
+}
+
+function drawShip(t) {
+  if (run.state === STATE.DEAD) return;
+  const blink = run.invuln > 0 && Math.floor(t * 18) % 2 === 0;
+
+  // Tether line to the held planet
+  if (ship.attached) {
+    const p = ship.attached;
+    ctx.strokeStyle = ship.grazing ? 'rgba(242,161,92,0.5)' : 'rgba(92,225,230,0.32)';
+    ctx.lineWidth = 1.6;
+    ctx.setLineDash([5, 7]);
+    ctx.lineDashOffset = -t * 30;
+    ctx.beginPath(); ctx.moveTo(ship.x, ship.y); ctx.lineTo(p.x, p.y); ctx.stroke();
+    ctx.setLineDash([]);
+  }
+  ctx.save();
+  ctx.translate(ship.x, ship.y);
+  ctx.rotate(ship.angle);
+
+  if (run.shield) {
+    ctx.globalCompositeOperation = 'lighter';
+    ctx.strokeStyle = 'rgba(159,232,255,' + (0.5 + 0.28 * Math.sin(t * 5)) + ')';
+    ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(0, 0, SHIP_R * 2.5, 0, TAU); ctx.stroke();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  if (!blink) {
+    // Glow
+    ctx.globalCompositeOperation = 'lighter';
+    const g = ctx.createRadialGradient(0, 0, 0, 0, 0, SHIP_R * 4.2);
+    g.addColorStop(0, 'rgba(150,240,255,0.5)');
+    g.addColorStop(1, 'rgba(150,240,255,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(0, 0, SHIP_R * 4.2, 0, TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+
+    // Hull
+    ctx.beginPath();
+    ctx.moveTo(SHIP_R * 1.75, 0);
+    ctx.lineTo(-SHIP_R * 1.05, SHIP_R * 0.92);
+    ctx.lineTo(-SHIP_R * 0.42, 0);
+    ctx.lineTo(-SHIP_R * 1.05, -SHIP_R * 0.92);
+    ctx.closePath();
+    ctx.fillStyle = '#F3EDE4';
+    ctx.fill();
+    ctx.strokeStyle = ship.grazing ? '#F2A15C' : '#5CE1E6';
+    ctx.lineWidth = 1.8;
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawParts() {
+  ctx.globalCompositeOperation = 'lighter';
+  for (const p of parts) {
+    const a = 1 - p.age / p.life;
+    ctx.globalAlpha = a;
+    ctx.fillStyle = p.c;
+    ctx.beginPath();
+    ctx.arc(p.x, p.y, p.r * (0.4 + a * 0.6), 0, TAU);
+    ctx.fill();
+  }
+  ctx.globalAlpha = 1;
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawEdgeWarning() {
+  if (run.state !== STATE.PLAY) return;
+  const leftEdge = cam.x - view.wW * 0.5;
+  const room = (ship.x - leftEdge) / (view.wW * 0.2);
+  const danger = clamp(1 - room, 0, 1);
+  if (danger <= 0.02) return;
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  const g = ctx.createLinearGradient(0, 0, view.w * 0.34, 0);
+  g.addColorStop(0, 'rgba(255,77,109,' + (0.5 * danger) + ')');
+  g.addColorStop(1, 'rgba(255,77,109,0)');
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, view.w * 0.34, view.h);
+}
+
+function drawFlash() {
+  if (run.flash <= 0) return;
+  ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+  ctx.fillStyle = 'rgba(255,255,255,' + (run.flash * 0.35) + ')';
+  ctx.fillRect(0, 0, view.w, view.h);
+}
+
+function render(t) {
+  drawBackground();
+  drawStars(t);
+  worldToScreen();
+
+  drawOutOfBounds();
+  drawRails(t);
+  for (const pr of world.pairs) {
+    ctx.strokeStyle = 'rgba(255,255,255,0.10)';
+    ctx.lineWidth = 1.4;
+    ctx.setLineDash([4, 8]);
+    ctx.beginPath(); ctx.moveTo(pr.a.x, pr.a.y); ctx.lineTo(pr.b.x, pr.b.y); ctx.stroke();
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,255,0.22)';
+    ctx.beginPath(); ctx.arc(pr.cx, pr.cy, 2.6, 0, TAU); ctx.fill();
+  }
+  drawBestMarker(t);
+  for (const p of world.planets) drawPlanet(p, t);
+  for (const q of world.pads) {
+    const y = q.side * HALF_H;
+    const glow = q.hit;
+    ctx.globalCompositeOperation = 'lighter';
+    const pg = ctx.createLinearGradient(0, y, 0, y - q.side * 54);
+    pg.addColorStop(0, 'rgba(92,225,230,' + (0.30 + glow * 0.4) + ')');
+    pg.addColorStop(1, 'rgba(92,225,230,0)');
+    ctx.fillStyle = pg;
+    ctx.fillRect(q.x, Math.min(y, y - q.side * 54), q.w, 54);
+    ctx.globalCompositeOperation = 'source-over';
+
+    ctx.strokeStyle = 'rgba(92,225,230,' + (0.85 + glow * 0.15) + ')';
+    ctx.lineWidth = 4 + glow * 3;
+    ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(q.x, y); ctx.lineTo(q.x + q.w, y); ctx.stroke();
+
+    // Inward chevrons: this edge pushes you back rather than ending the run.
+    ctx.strokeStyle = 'rgba(92,225,230,0.5)';
+    ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let cx = q.x + 26; cx < q.x + q.w - 10; cx += 40) {
+      ctx.moveTo(cx - 11, y - q.side * 4);
+      ctx.lineTo(cx, y - q.side * 19);
+      ctx.lineTo(cx + 11, y - q.side * 4);
+    }
+    ctx.stroke();
+  }
+
+  for (const g of world.gates) {
+    const acc = ZONES[run.zone].accent;
+    const top = g.y - g.h / 2, bot = g.y + g.h / 2;
+    ctx.globalCompositeOperation = 'lighter';
+    const lg = ctx.createLinearGradient(g.x - 40, 0, g.x + 40, 0);
+    lg.addColorStop(0, acc + '00'); lg.addColorStop(0.5, acc + '33'); lg.addColorStop(1, acc + '00');
+    ctx.fillStyle = lg;
+    ctx.fillRect(g.x - 40, top, 80, g.h);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.strokeStyle = acc; ctx.lineWidth = 3.5; ctx.lineCap = 'round';
+    for (const y of [top, bot]) {
+      ctx.beginPath(); ctx.moveTo(g.x - 26, y); ctx.lineTo(g.x + 26, y); ctx.stroke();
+    }
+  }
+  for (const k of world.rocks) drawRock(k);
+  for (const o of world.orbs) drawOrb(o, t);
+  for (const pw of world.powers) drawPower(pw, t);
+  drawTrail();
+  drawParts();
+  drawWaves();
+  drawShip(t);
+
+  drawEdgeWarning();
+  drawFlash();
+}
+
+/* =========================================================
+   14. HUD SYNC
+   ========================================================= */
+
+const hudEls = { score: el('score'), dist: el('dist'), combo: el('combo') };
+let hudScore = 0;
+
+// Three static pills, toggled and re-filled each frame — no innerHTML churn.
+const pills = {};
+for (const k of POWER_KEYS) {
+  const d = document.createElement('div');
+  d.className = 'pw';
+  d.style.color = POWERS[k].color;
+  d.style.display = 'none';
+  d.innerHTML = '<span>' + POWERS[k].label + '</span><i class="bar"></i>';
+  el('powers').appendChild(d);
+  pills[k] = { el: d, bar: d.querySelector('.bar') };
+}
+
+function syncPowers() {
+  for (const k of POWER_KEYS) {
+    const on = k === 'shield' ? run.shield : run[k] > 0;
+    const active = on && run.state === STATE.PLAY && !run.awaitFirst;
+    pills[k].el.style.display = active ? '' : 'none';
+    if (!active) continue;
+    const frac = k === 'shield' ? 1 : run[k] / POWERS[k].dur;
+    pills[k].bar.style.width = (frac * 100).toFixed(1) + '%';
+  }
+}
+
+function syncHUD(dt) {
+  hudScore = lerp(hudScore, run.score, 1 - Math.exp(-9 * dt));
+  if (Math.abs(hudScore - run.score) < 1) hudScore = run.score;
+  hudEls.score.textContent = Math.round(hudScore).toLocaleString();
+  hudEls.dist.textContent = Math.floor(run.metres).toLocaleString() + ' m';
+
+  syncPowers();
+
+  const m = multiplier();
+  if (run.combo >= 3 && run.state === STATE.PLAY) {
+    hudEls.combo.textContent = 'CHAIN ' + run.combo + '  ×' + m.toFixed(1);
+    hudEls.combo.classList.add('on');
+  } else {
+    hudEls.combo.classList.remove('on');
+  }
+}
+
+/* =========================================================
+   15. KERNEL HOOKS — everything the shared loop asks of this game
+   ========================================================= */
+
+Object.assign(G, {
+  overDelay: 650,
+  resumeInvuln: 0.45,
+  dim: 'rgba(154,147,184,.4)',
+  banner: { box: 'flag', text: 'flagtext', color: 'var(--amber)', shadow: '#F2A15C', ms: 1500, pop: true },
+
+  layout() {
+    // Guarantee a minimum vertical AND horizontal sightline on any aspect ratio.
+    view.scale = Math.min(view.h / TARGET_VIS_H, view.w / MIN_VIEW_W);
+    view.wW = view.w / view.scale;
+    view.wH = view.h / view.scale;
+    // A phone sees a tall, narrow slice. Left alone that means twice the vertical
+    // ground to cover with half the forward sight — a different, much harder game.
+    // Cap the corridor against the visible WIDTH, and scale speed so the time to
+    // cross the screen is the same on every device.
+    HALF_H = clamp(Math.min(view.wH * 0.84, view.wW * 0.95), RAIL_MIN, RAIL_MAX) / 2;
+    SPEED_SCALE = clamp(view.wW / 1700, 0.62, 1);
+    checkOrientation();
+  },
+  blocked() { return blocked; },
+
+  reset() {
+    run.zone = 0; run.zonePrev = 0; run.zoneFade = 1; run.deepCycle = 0;
+    run.rampM = 0; run.rampHoldUntil = 0;
+    setPalette(ZONES[0], ZONES[0], 1, 1);
+    resetWorld();
+    ship.x = 130; ship.y = 0; ship.angle = 0;
+    ship.speed = BASE_SPEED * SPEED_SCALE;
+    ship.attached = null;
+    ship.lockout = null;
+    ship.trail.length = 0;
+    ship.trailT = 0;
+    ship.grazing = false;
+    ship.loopArc = 0;
+
+    run.metres = 0; run.combo = 0; run.freeTime = 0; run.invuln = 0.6;
+    run.newBestHit = false;
+    run.shield = false; run.coolant = 0; run.overdrive = 0; run.nextMile = MILESTONE;
+
+    cam.x = 0; cam.y = 0;
+    generateAhead(view.wW * 2.2, 0);
+    generatePads(view.wW * 2.4);
+    el('introBest').textContent = run.best
+      ? 'Best ' + run.best.toLocaleString() + (run.bestDist ? ' \u00b7 ' + run.bestDist.toLocaleString() + ' m' : '') : '';
+  },
+
+  decay(dt) {
+    for (const p of world.planets) p.glow = Math.max(0, p.glow - dt * 3.4);
+    for (const q of world.pads) if (q.hit > 0) q.hit = Math.max(0, q.hit - dt * 2.2);
+  },
+  idle(dt, clock) {
+    // Live scene, frozen run. The ship idles on its mark until first input.
+    ship.y = Math.sin(clock * 1.9) * 7;
+    ship.trail.length = 0;
+    for (const p of world.planets) p.spin += p.spinRate * dt;
+    for (const k of world.rocks) k.spin += k.spinRate * dt;
+  },
+  dead(dt) { cam.x += 12 * dt; },
+  syncHUD: syncHUD,
+  render: render,
+
+  step(dt) {
+    run.coolant = Math.max(0, run.coolant - dt);
+    run.overdrive = Math.max(0, run.overdrive - dt);
+
+    updateShip(dt);
+
+    // Camera: follow forward only, with a creep that scales with speed.
+    const targetX = ship.x + view.wW * 0.09;
+    if (targetX > cam.x) cam.x = lerp(cam.x, targetX, 1 - Math.exp(-4.5 * dt));
+    const creep = (0.011 + Math.min(0.032, run.metres * 0.000040)) * (ship.attached ? 0.35 : 1);
+    cam.x += view.wW * creep * dt;
+    cam.y = lerp(cam.y, clamp(ship.y * 0.12, -70, 70), 1 - Math.exp(-2.4 * dt));
+
+    const prevM = run.metres;
+    run.metres = cam.x / 10;
+    if (run.engaged) run.score += Math.max(0, run.metres - prevM) * multiplier();
+
+    // Zone boundary
+    const zi = zoneIndexAt(run.metres);
+    if (zi !== run.zone) enterZone(zi);
+    if (zi === 4) {
+      const cyc = Math.floor((run.metres - ZONE_AT[4]) / DEEP_LOOP);
+      if (cyc !== run.deepCycle) {
+        run.deepCycle = cyc;
+        run.rampHoldUntil = run.metres + RAMP_HOLD;
+        banner('THE DEEP \u00b7 ' + (cyc + 1), ZONES[4].accent);
+        shockwave(ship.x, ship.y, { maxR: view.wW * 0.8, life: 1.1, color: ZONES[4].accent, width: 8 });
+        Sound.zone();
+      }
+    }
+    if (run.zoneFade < 1) run.zoneFade = Math.min(1, run.zoneFade + dt / ZONE_FADE);
+    setPalette(ZONES[run.zonePrev], ZONES[run.zone], run.zoneFade, deepDarken());
+
+    // Speed holds flat briefly after every boundary.
+    if (run.metres >= run.rampHoldUntil) run.rampM += Math.max(0, run.metres - prevM);
+
+    // Milestone pulse — gives a long run a rhythm instead of a flat line.
+    if (run.metres >= run.nextMile) {
+      const m = run.nextMile;
+      run.nextMile += MILESTONE;
+      if (nearBoundary(m)) { /* zone change owns this beat */ } else {
+      run.score += 250 * multiplier();
+      run.hitstop = 0.07;
+      run.flash = 0.26;
+      shockwave(ship.x, ship.y, { maxR: view.wW * 0.66, life: 0.95, color: '#5CE1E6', width: 7 });
+      shockwave(ship.x, ship.y, { maxR: view.wW * 0.44, life: 0.8, color: '#B47CFF', width: 4, delay: 0.1 });
+      burst(ship.x, ship.y, 22, { color: '#5CE1E6', maxSpeed: 300, maxLife: 0.85 });
+      banner(Math.round(m).toLocaleString() + ' M', '#5CE1E6');
+      Sound.milestone();
+      }
+    }
+
+    if (!run.newBestHit && run.bestDist > 0 && run.metres > run.bestDist) {
+      run.newBestHit = true;
+      run.flash = 0.3;
+      burst(ship.x, ship.y, 24, { color: '#F2A15C', maxSpeed: 300, maxLife: 0.9 });
+      Sound.tone(700, 0.16, 'triangle', 0.2, 1200);
+      Sound.tone(1050, 0.3, 'sine', 0.14, 1400);
+      el('flag').classList.add('on');
+      setTimeout(() => el('flag').classList.remove('on'), 1700);
+    }
+
+    for (const k of world.rocks) { k.spin += k.spinRate * dt; k.y += k.drift * dt; }
+    for (const pr of world.pairs) stepPair(pr, dt);
+    for (const p of world.planets) {
+      p.spin += p.spinRate * dt;
+      if (p.vy) {
+        p.y += p.vy * dt;
+        const lim = HALF_H - p.r - 70;
+        if (p.y > lim) { p.y = lim; p.vy = -p.vy; }
+        else if (p.y < -lim) { p.y = -lim; p.vy = -p.vy; }
+      }
+    }
+
+    generateAhead(cam.x + view.wW * 1.6, run.metres);
+    generatePads(cam.x + view.wW * 1.8);
+    cullBehind(cam.x - view.wW * 0.9);
+
+    checkCollisions();
+  },
+
+  wake() { Sound.startDrone(); },
+
+  hush() { Sound.stopDrone(); },
+  launch() {
+    if (!sessionSeenHint) {
+      sessionSeenHint = true;
+      el('hint').classList.add('on');
+      setTimeout(() => el('hint').classList.remove('on'), 4000);
+    }
+  },
+
+  // A shield eats one impact. Falling off the back isn't an impact, so it doesn't.
+  dying(cause, hitObj) {
+    if (!run.shield || cause === 'Left behind') return false;
+    run.shield = false;
+    run.invuln = 1.4;
+    run.hitstop = 0.07;
+    run.shake = 0.7;
+    run.flash = 0.3;
+    ship.attached = null;
+    ship.lockout = null;
+    ship.trail.length = 0;
+    // Push clear of whatever was hit so the ship doesn't re-collide on resume.
+    if (hitObj) {
+      const dx = ship.x - hitObj.x, dy = ship.y - hitObj.y;
+      const d = Math.hypot(dx, dy) || 1;
+      const safe = hitObj.r + SHIP_R + 34;
+      ship.x = hitObj.x + (dx / d) * safe;
+      ship.y = hitObj.y + (dy / d) * safe;
+      ship.angle = Math.atan2(dy, dx);
+    }
+    ship.y = clamp(ship.y, -HALF_H + 100, HALF_H - 100);
+    shockwave(ship.x, ship.y, { maxR: 420, life: 0.8, color: '#9FE8FF', width: 7 });
+    burst(ship.x, ship.y, 26, { color: '#9FE8FF', maxSpeed: 320, maxLife: 0.8 });
+    banner('SHIELD DOWN', '#9FE8FF');
+    Sound.guard();
+    return true;
+  },
+  crash() {
+    ship.attached = null;
+    // Impact shockwave: a hard white core, a red front, an amber echo.
+    shockwave(ship.x, ship.y, { maxR: view.wW * 0.30, life: 0.55, color: '#FFFFFF', width: 4 });
+    shockwave(ship.x, ship.y, { maxR: view.wW * 0.78, life: 0.95, color: '#FF4D6D', width: 9 });
+    shockwave(ship.x, ship.y, { maxR: view.wW * 0.52, life: 0.85, color: '#F2A15C', width: 5, delay: 0.11 });
+    burst(ship.x, ship.y, 46, { color: '#FF4D6D', maxSpeed: 420, maxLife: 1.1, minR: 1.4, maxR: 4.6 });
+    burst(ship.x, ship.y, 22, { color: '#F2A15C', maxSpeed: 260, maxLife: 0.9 });
+  },
+  celebrate(i) {
+    const a = rand(0, TAU), r = i ? rand(60, 220) : 0;
+    const x = ship.x + Math.cos(a) * r, y = ship.y + Math.sin(a) * r;
+    burst(x, y, 26, { color: i % 2 ? '#FFFFFF' : '#F2A15C', minSpeed: 120, maxSpeed: 360,
+                      minLife: 0.6, maxLife: 1.3, maxR: 3.8, drag: 1.2 });
+    shockwave(x, y, { maxR: 150 + i * 30, life: 0.6, color: '#F2A15C', width: 3 });
+  },
+  record() {
+    const isBest = run.score > run.best;
+    if (isBest) { run.best = run.score; store('perigee.best', String(run.best)); }
+    if (run.metres > run.bestDist) { run.bestDist = Math.floor(run.metres); store('perigee.bestdist', String(run.bestDist)); }
+    return isBest;
+  },
+  overPanel() {
+    el('finalScore').textContent = Math.round(run.score).toLocaleString();
+    el('finalDist').textContent = Math.floor(run.metres).toLocaleString() + ' m';
+    el('finalChain').textContent = run.bestChain;
+  },
+
+  // Clear a safe pocket around the ship and put it back in flight.
+  revive() {
+    run.invuln = 1.6;
+    ship.trail.length = 0;
+    ship.attached = null;
+    ship.y = clamp(ship.y, -HALF_H + 120, HALF_H - 120);
+    ship.x = Math.max(ship.x, cam.x - view.wW * 0.2);
+    ship.angle = 0;
+    ship.speed = BASE_SPEED * SPEED_SCALE;
+    for (let i = world.planets.length - 1; i >= 0; i--) {
+      const p = world.planets[i];
+      const dx = p.x - ship.x, dy = p.y - ship.y;
+      if (dx * dx + dy * dy < (p.r + 190) * (p.r + 190)) world.planets.splice(i, 1);
+    }
+    for (let i = world.rocks.length - 1; i >= 0; i--) {
+      const k = world.rocks[i];
+      const dx = k.x - ship.x, dy = k.y - ship.y;
+      if (dx * dx + dy * dy < 330 * 330) world.rocks.splice(i, 1);
+    }
+    burst(ship.x, ship.y, 30, { color: '#5CE1E6', maxSpeed: 300, maxLife: 0.9 });
+  }
+});
+
+/* =========================================================
+   16. BOOT
+   ========================================================= */
+
+// Exposed purely so automated playtests can drive and inspect a run.
+window.__gen = generateAhead;
+window.__perigee = { ship: ship, run: run, world: world, cam: cam, view: view, input: input, STATE: STATE, waves: waves, POWERS: POWERS, pal: pal, ZONES: ZONES, begin: function () { beginRun(); }, __HALF: function () { return HALF_H; } };
+
+boot();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Arcade — Iqbal Hossain</title>
+<meta name="description" content="Games you can play right here in the browser.">
+<link rel="stylesheet" href="../blog/blog.css">
+<style>
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);
+       font-size:19px;line-height:1.68;padding:0 20px 80px}
+  .wrap{max-width:820px;margin:0 auto}
+  .topbar{display:flex;gap:10px;align-items:center;padding:22px 0 30px}
+  .topbar a{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);
+    text-decoration:none;background:var(--paper);border:3px solid var(--ink);
+    border-radius:9px;padding:6px 11px;box-shadow:0 3px 0 var(--ink)}
+  .topbar a:hover{transform:translateY(1px);box-shadow:0 2px 0 var(--ink)}
+  .topbar .who{font-family:var(--mono);font-size:13px;color:#1f3d15;font-weight:700;margin-left:auto}
+  h1{font-family:var(--mono);font-size:27px;line-height:1.2;letter-spacing:-.01em;margin:0 0 8px}
+  h2{font-family:var(--mono);font-size:15px;letter-spacing:.08em;text-transform:uppercase;
+     margin:38px 0 12px;color:var(--ink-2)}
+  .lede{color:var(--ink-2);margin:0 0 28px}
+  .meta{font-family:var(--mono);font-size:13px;color:var(--ink-dim);margin:0 0 26px}
+  .card{display:block;text-decoration:none;color:inherit;background:var(--paper-2);
+    border:3px solid var(--ink);border-radius:12px;box-shadow:0 4px 0 var(--ink);
+    padding:18px 20px;margin:0 0 22px}
+  .card:hover{transform:translateY(1px);box-shadow:0 3px 0 var(--ink)}
+  .card h3{font-family:var(--mono);font-size:17px;margin:0 0 6px}
+  .card p{margin:0;color:var(--ink-2);font-size:17px}
+  .tag{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.08em;
+    text-transform:uppercase;color:var(--accent);display:block;margin-bottom:8px}
+  .frame{width:100%;aspect-ratio:9/16;max-height:78vh;border:3px solid var(--ink);
+    border-radius:12px;box-shadow:0 4px 0 var(--ink);background:#11161c;display:block}
+  .row{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 0}
+  .row a{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);
+    text-decoration:none;background:var(--paper);border:3px solid var(--ink);
+    border-radius:9px;padding:6px 11px;box-shadow:0 3px 0 var(--ink)}
+  .note{background:var(--paper-2);border:3px solid var(--ink);border-radius:12px;
+    box-shadow:0 4px 0 var(--ink);padding:18px 20px;margin:26px 0}
+  .note p{margin:0}
+  dl{display:grid;grid-template-columns:auto 1fr;gap:6px 16px;font-size:17px;margin:22px 0 0}
+  dt{font-family:var(--mono);font-size:12px;letter-spacing:.06em;text-transform:uppercase;
+     color:var(--ink-dim);padding-top:4px}
+  dd{margin:0}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="topbar">
+    <a href="../">← Village</a>
+    <a href="./">Arcade</a>
+    <span class="who">Iqbal Hossain</span>
+  </div>
+  <h1>Arcade</h1>
+  <p class="lede">These run in the page. No install, no account, nothing to download —
+  each one is a single HTML file that generates its own sound and art at runtime.</p>
+
+  <a class="card" href="cargo.html">
+    <span class="tag">phone &amp; desktop · 75 KB</span>
+    <h3>Cargo Loop</h3>
+    <p>Release cargo onto a loop, flip switches to route it to the right truck.</p>
+  </a>
+  <a class="card" href="lumen.html">
+    <span class="tag">phone &amp; desktop · 38 KB</span>
+    <h3>Lumen Relay</h3>
+    <p>Tap mirrors to bend light into the crystals, without touching a bomb.</p>
+  </a>
+  <a class="card" href="perigee.html">
+    <span class="tag">phone &amp; desktop · 100 KB</span>
+    <h3>Perigee</h3>
+    <p>Hold to orbit a planet, let go to sling. Endless gravity arcade.</p>
+  </a>
+  <a class="card" href="slinger.html">
+    <span class="tag">phone &amp; desktop · 89 KB</span>
+    <h3>Jetpack Slinger</h3>
+    <p>Hold to hook a pole, release at the top of the swing, climb.</p>
+  </a>
+  <p class="meta">Updated 2026-09-11</p>
+</div>
+</body>
+</html>

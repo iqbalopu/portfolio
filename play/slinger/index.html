@@ -1,0 +1,2259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Jetpack Slinger</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+<!--
+  JETPACK SLINGER — one-input vertical climber.
+  Hold to anchor to a sling pole and wind up. Release to fling.
+  Thrust bleeds away in free flight; at zero you fall.
+
+  Portrait play area, letterboxed on wide screens so desktop still works
+  (Poki requires desktop, mobile AND tablet support).
+-->
+<script>window.__BUILD__ = {"portal":"itch","escPause":true,"devReward":false,"continueUI":"none"};</script>
+</head>
+<body>
+<style>
+  :root {
+    --ink:      #F6F1E8;
+    --ink-dim:  #9FA6C0;
+    --thrust:   #7CFFB2;
+    --warn:     #FFC24D;
+    --danger:   #FF4D6D;
+    --anchor:   #58D7FF;
+    --gold:     #FFD98A;
+    --surround: #05060D;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body {
+    width: 100%; height: 100%;
+    overflow: hidden;
+    background: var(--surround);
+    color: var(--ink);
+    font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -webkit-tap-highlight-color: transparent;
+    overscroll-behavior: none;
+    touch-action: none;
+    user-select: none; -webkit-user-select: none;
+  }
+  #stage { position: fixed; inset: 0; }
+  canvas { display: block; position: absolute; top: 0; left: 0; touch-action: none; }
+
+  .mono {
+    font-family: ui-monospace, "SF Mono", "Cascadia Mono", "Roboto Mono", Menlo, Consolas, monospace;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Overlays are positioned to the play rect, not the viewport. */
+  .layer { position: absolute; display: none; pointer-events: none; }
+  .layer.on { display: block; }
+
+  #hud { padding: 16px 18px; }
+  #alt {
+    position: absolute; top: calc(max(14px, env(safe-area-inset-top)) + 12px); left: 0; right: 0;
+    text-align: center;
+  }
+  #alt .v {
+    font-size: clamp(30px, 9vw, 46px); font-weight: 800; letter-spacing: -.02em;
+    line-height: 1; color: var(--ink); text-shadow: 0 2px 18px rgba(0,0,0,.6);
+  }
+  #alt .u {
+    font-size: 10px; letter-spacing: .3em; text-transform: uppercase;
+    color: var(--ink-dim); font-weight: 700; margin-top: 5px;
+  }
+  #chain {
+    position: absolute; top: calc(max(14px, env(safe-area-inset-top)) + 88px);
+    left: 0; right: 0; text-align: center;
+    font-size: clamp(13px, 3.6vw, 17px); font-weight: 800; letter-spacing: .12em;
+    color: var(--gold); opacity: 0; transition: opacity .18s ease;
+    text-shadow: 0 0 20px rgba(255,217,138,.7);
+  }
+  #chain.on { opacity: 1; }
+
+  /* Speed bar, bottom of the play rect */
+  #bar {
+    position: absolute; left: 22px; right: 22px;
+    bottom: max(22px, calc(env(safe-area-inset-bottom) + 16px));
+  }
+  #bar .track {
+    height: 15px; border-radius: 2px;
+    background: rgba(6,8,18,.66);
+    border: 1px solid rgba(255,255,255,.20);
+    overflow: hidden; position: relative;
+  }
+  #bar .fill {
+    position: absolute; inset: 0 auto 0 0; width: 0%;
+    background: var(--thrust);
+    transition: background-color .18s linear;
+  }
+  #bar .lbl {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+    font-size: 9.5px; letter-spacing: .24em; text-transform: uppercase;
+    font-weight: 700; color: var(--ink-dim);
+  }
+  #bar .num { color: var(--ink); letter-spacing: .06em; }
+  #bar.empty .lbl .k { color: var(--danger); }
+
+  /* Panels */
+  .panel {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    padding: 26px; text-align: center;
+    background: radial-gradient(72% 52% at 50% 46%, rgba(4,5,12,.52) 0%, rgba(4,5,12,.86) 74%);
+    pointer-events: auto;
+  }
+  .panel.intro {
+    pointer-events: none;
+    background: radial-gradient(78% 56% at 50% 44%, rgba(4,5,12,.30) 0%, rgba(4,5,12,.72) 78%);
+  }
+
+  .title {
+    font-size: clamp(34px, 11vw, 58px); font-weight: 800; line-height: .96;
+    letter-spacing: .01em;
+    background: linear-gradient(165deg, var(--thrust) 0%, #BFF7FF 46%, var(--anchor) 100%);
+    -webkit-background-clip: text; background-clip: text; color: transparent;
+    filter: drop-shadow(0 0 30px rgba(124,255,178,.3));
+  }
+  .tagline {
+    margin-top: 12px; font-size: clamp(10px, 2.8vw, 12.5px); letter-spacing: .28em;
+    text-transform: uppercase; font-weight: 700; color: var(--ink-dim);
+  }
+  .prompt {
+    margin-top: clamp(26px, 6vw, 38px);
+    font-size: clamp(12px, 3.2vw, 14px); letter-spacing: .28em; text-transform: uppercase;
+    font-weight: 800; color: var(--thrust);
+    animation: breathe 1.9s ease-in-out infinite;
+  }
+  @keyframes breathe { 0%,100% { opacity:.45 } 50% { opacity:1 } }
+
+  .over-label {
+    font-size: clamp(10px, 2.8vw, 12px); letter-spacing: .32em; text-transform: uppercase;
+    font-weight: 800; color: var(--danger);
+  }
+  .score-big {
+    margin-top: 10px; font-size: clamp(48px, 15vw, 84px); font-weight: 800;
+    line-height: .92; letter-spacing: -.03em; color: var(--ink);
+  }
+  .score-unit { font-size: .32em; color: var(--ink-dim); letter-spacing: .1em; margin-left: .18em; }
+  .score-sub { margin-top: 14px; display: flex; gap: clamp(18px,7vw,34px); justify-content: center; }
+  .score-sub div { display: flex; flex-direction: column; gap: 4px; }
+  .score-sub .k { font-size: 9px; letter-spacing: .22em; text-transform: uppercase; color: var(--ink-dim); font-weight: 700; }
+  .score-sub .v { font-size: clamp(15px,4.4vw,20px); font-weight: 700; }
+  .best-flag {
+    margin-top: 14px; font-size: clamp(10px,2.8vw,12px); letter-spacing: .26em;
+    text-transform: uppercase; font-weight: 800; color: var(--gold); opacity: 0;
+  }
+  .best-flag.on { opacity: 1; }
+  .tapline {
+    margin-top: clamp(24px, 6vw, 34px);
+    appearance: none; border: 0; background: none; padding: 8px 12px;
+    font: inherit; font-weight: 800; font-size: clamp(14px, 4vw, 19px);
+    letter-spacing: .22em; text-transform: uppercase; color: var(--thrust);
+    cursor: pointer; text-shadow: 0 0 24px rgba(124,255,178,.45);
+    animation: breathe 1.9s ease-in-out infinite;
+  }
+  .tapline:focus-visible { outline: 2px solid var(--thrust); outline-offset: 3px; }
+  .btn.ghost {
+    appearance: none; margin-top: 16px;
+    border: 1px solid rgba(159,166,192,.26); background: transparent;
+    color: var(--ink-dim); font: inherit; font-weight: 700;
+    font-size: clamp(10px, 2.4vw, 11.5px); letter-spacing: .2em; text-transform: uppercase;
+    padding: 9px 20px; border-radius: 2px; cursor: pointer; opacity: .78;
+  }
+  .btn.ghost:hover { color: var(--ink); border-color: var(--ink-dim); opacity: 1; }
+
+  #corner {
+    position: absolute; right: 14px;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 52px));
+    display: flex; gap: 8px; pointer-events: auto; z-index: 5;
+  }
+  #corner.hide-pause #btnPause { display: none; }
+  .icon {
+    width: 34px; height: 34px; display: grid; place-items: center;
+    border: 1px solid rgba(159,166,192,.26); border-radius: 2px;
+    background: rgba(5,6,13,.5); color: var(--ink-dim);
+    cursor: pointer; font-size: 14px; line-height: 1;
+  }
+  .icon:hover { color: var(--ink); }
+
+  /* --- boost: a round button in the bottom-left corner, mirroring the icons.
+     The ring around it is the power meter (a conic gradient in the border,
+     --p from syncHUD); the button is ghosted and inert until the ring closes. --- */
+  #boost {
+    --p: 0;
+    position: absolute; left: 14px;
+    bottom: max(58px, calc(env(safe-area-inset-bottom) + 52px));
+    width: 84px; height: 84px; border-radius: 50%; padding: 0;
+    border: 7px solid transparent;
+    background:
+      radial-gradient(circle at 50% 40%, rgba(88,215,255,.30), rgba(5,6,13,.85) 70%) padding-box,
+      conic-gradient(var(--anchor) 0, #B47CFF calc(var(--p) * 360deg), rgba(159,166,192,.2) 0) border-box;
+    box-shadow: 0 0 calc(2px + 18px * var(--p)) rgba(88,215,255, calc(.7 * var(--p)));
+    opacity: calc(.55 + .45 * var(--p)); cursor: pointer;
+    pointer-events: none; transform: scale(.85);
+    transition: opacity .2s ease, transform .2s ease, box-shadow .25s ease;
+    -webkit-tap-highlight-color: transparent; touch-action: manipulation;
+  }
+  #boost.on { opacity: 1; pointer-events: auto; transform: scale(1);
+              animation: pwrpulse 1.1s ease-in-out infinite; }
+  #boost i {
+    position: absolute; left: 50%; width: 18px; height: 18px; margin-left: -9px;
+    border-left: 4px solid var(--ink-dim); border-top: 4px solid var(--ink-dim);
+    transform: rotate(45deg); border-radius: 2px;
+  }
+  #boost.on i { border-color: var(--ink); }
+  #boost i:first-child { top: 17px; } #boost i:last-child { top: 34px; }
+  @keyframes pwrpulse {
+    0%,100% { box-shadow: 0 0 0 0 rgba(88,215,255,.0), 0 0 14px rgba(88,215,255,.45); }
+    50%     { box-shadow: 0 0 0 5px rgba(88,215,255,.16), 0 0 26px rgba(88,215,255,.85); }
+  }
+
+  /* --- coach: the first-run tutorial prompt --- */
+  #coach {
+    position: absolute; left: 18px; right: 18px;
+    bottom: max(118px, calc(env(safe-area-inset-bottom) + 112px));
+    text-align: center; pointer-events: none;
+    opacity: 0; transform: translateY(8px);
+    transition: opacity .22s ease, transform .22s ease;
+  }
+  #coach.on { opacity: 1; transform: none; }
+  #coach .ct {
+    font-size: clamp(19px, 5.6vw, 27px); font-weight: 800; letter-spacing: .06em;
+    color: var(--ink); text-transform: uppercase; line-height: 1.15;
+    text-shadow: 0 0 24px rgba(5,6,13,.95), 0 2px 14px rgba(5,6,13,.9);
+  }
+  #coach.go .ct { color: var(--thrust); text-shadow: 0 0 26px rgba(124,255,178,.85); }
+  #coach .cs {
+    margin-top: 9px; font-size: clamp(12px, 3.4vw, 15px); font-weight: 600;
+    color: var(--ink-dim); letter-spacing: .04em; line-height: 1.45;
+    text-shadow: 0 2px 12px rgba(5,6,13,.95);
+  }
+  #coach .cs b { color: var(--ink); font-weight: 800; }
+  #skip {
+    position: absolute; left: 0; right: 0;
+    bottom: max(74px, calc(env(safe-area-inset-bottom) + 68px));
+    text-align: center; font-size: 12px; font-weight: 700; letter-spacing: .18em;
+    text-transform: uppercase; color: rgba(159,166,192,.55);
+    background: none; border: 0; cursor: pointer; display: none;
+    font-family: inherit; -webkit-tap-highlight-color: transparent;
+  }
+  #skip.on { display: block; pointer-events: auto; }
+  #skip:hover { color: var(--ink-dim); }
+  /* The bar pulses while the tutorial is pointing at it. */
+  @keyframes barcall { 0%,100% { box-shadow: 0 0 0 0 rgba(124,255,178,0); }
+                       50%     { box-shadow: 0 0 0 4px rgba(124,255,178,.28); } }
+  #bar.call .track { animation: barcall 1.05s ease-in-out infinite; }
+
+
+  /* A new record: a slow light ray behind the number, above the panel's own ground. */
+  .panel { isolation: isolate; }
+  .score-big { position: relative; }
+  .score-big::before {
+    content: ''; position: absolute; left: 50%; top: 50%; width: 170vmin; height: 170vmin;
+    transform: translate(-50%,-50%); z-index: -1; opacity: 0; pointer-events: none;
+    background: repeating-conic-gradient(from 0deg, rgba(255,217,138,.14) 0 7deg, transparent 7deg 24deg);
+    -webkit-mask: radial-gradient(circle, #000 0%, rgba(0,0,0,.6) 22%, transparent 52%);
+    mask: radial-gradient(circle, #000 0%, rgba(0,0,0,.6) 22%, transparent 52%);
+    transition: opacity .6s ease;
+  }
+  #over.record .score-big::before { opacity: 1; animation: ray 18s linear infinite; }
+  @keyframes ray { to { transform: translate(-50%,-50%) rotate(360deg); } }
+  .best-line { margin-top: 14px; font-size: clamp(11px, 3vw, 13px); letter-spacing: .22em;
+               text-transform: uppercase; font-weight: 700; color: var(--gold); }
+  .best-line:empty { display: none; }
+  @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <div class="layer" id="hud">
+    <div id="alt"><div class="v mono" id="altV">0</div><div class="u">metres</div></div>
+    <div id="chain" class="mono"></div>
+    <div id="bar">
+      <div class="lbl"><span class="k">Climb</span><span class="num mono" id="spdNum">0</span></div>
+      <div class="track"><div class="fill" id="spdFill"></div></div>
+    </div>
+    <button id="boost" type="button" aria-label="Boost"><i></i><i></i></button>
+    <div id="coach"><div class="ct" id="coachT"></div><div class="cs" id="coachS"></div></div>
+    <button id="skip" type="button">Skip tutorial</button>
+  </div>
+
+  <div class="layer on" id="intro">
+    <div class="panel intro">
+      <h1 class="title">JETPACK<br>SLINGER</h1>
+      <p class="tagline">Climb or fall</p>
+      <div class="prompt">Hold anywhere to launch</div>
+      <div class="best-line mono" id="introBest"></div>
+    </div>
+  </div>
+
+  <div class="layer" id="over">
+    <div class="panel">
+      <span class="over-label" id="overLabel">Lost</span>
+      <div class="score-big mono" id="finalAlt">0<span class="score-unit">m</span></div>
+      <div class="score-sub mono">
+        <div><span class="k">Slings</span><span class="v" id="finalSlings">0</span></div>
+        <div><span class="k">Best Chain</span><span class="v" id="finalChain">0</span></div>
+        <div><span class="k">Best</span><span class="v" id="finalBest">0</span></div>
+      </div>
+      <span class="best-flag" id="bestFlag">New record</span>
+      <button class="tapline" id="again">Tap anywhere to retry</button>
+      <button class="btn ghost" id="revive">Continue &mdash; watch ad</button>
+    </div>
+  </div>
+
+  <div class="layer" id="paused">
+    <div class="panel">
+      <span class="tagline" style="margin:0">Paused</span>
+      <button class="tapline" id="resume">Resume</button>
+      <button class="btn ghost" id="howto">How to play</button>
+      <button class="btn ghost" id="quit">Give up</button>
+    </div>
+  </div>
+
+  <div id="corner">
+    <div class="icon" id="btnSound" role="button" tabindex="0" aria-label="Sound">&#9835;</div>
+    <div class="icon" id="btnPause" role="button" tabindex="0" aria-label="Pause">&#10073;&#10073;</div>
+  </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+// Helpers every game and every kernel module share. Nothing here knows about
+// a game, the DOM beyond getElementById, or the portal.
+
+const TAU = Math.PI * 2;
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const rand  = (a, b) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
+const pick  = a => a[(Math.random() * a.length) | 0];
+
+const el = id => document.getElementById(id);
+
+// Haptics. The iOS wrapper registers a WKScriptMessageHandler named "haptic"
+// (ios/Sources/App.swift); everywhere else this is the Vibration API, which
+// Android WebView and Chrome have (VIBRATE is in the manifest) and iOS Safari
+// does not. A silent no-op where neither exists.
+function haptic(pattern) {
+  try {
+    const ios = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.haptic;
+    if (ios) ios.postMessage(pattern);
+    else if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch (e) {}
+}
+
+// localStorage that never throws (private mode, blocked storage).
+function store(k, v) {
+  try {
+    if (v === undefined) return localStorage.getItem(k);
+    localStorage.setItem(k, v);
+  } catch (e) {}
+  return null;
+}
+
+// Per-portal build configuration, injected by build.mjs. Defaults = dev build.
+const BUILD = Object.assign(
+  { portal: 'dev', escPause: true, devReward: true, continueUI: 'ad' },
+  (typeof window !== 'undefined' && window.__BUILD__) || {}
+);
+
+// The state every kernel module reads, and the hooks a game fills in.
+
+const STATE = { PLAY: 1, DEAD: 2, PAUSE: 3 };
+
+// Fields the kernel owns. A game adds its own with Object.assign(run, {...}),
+// including `best`, since the storage key is the game's.
+const run = {
+  state: STATE.PLAY, score: 0, bestChain: 0,
+  shake: 0, hitstop: 0, flash: 0, invuln: 0, time: 0,
+  awaitFirst: true, engaged: false, canRetry: false, revived: false,
+  cause: '', best: 0
+};
+
+// x/y are where the last press landed, in CSS pixels. A one-input game
+// ignores them; a game with tap targets (Cargo Loop's yard, switches and
+// dock) needs to know what was hit.
+const input = { held: false, locked: false, x: 0, y: 0 };
+
+// What the kernel asks of a game. Fill it with Object.assign(G, {...}) before
+// boot(). Hooks marked * are required; the rest are optional.
+//   layout()*          resize: derive the play rect / world scale from view.w, view.h
+//   reset(teach)*      resetRun: rebuild the world and the game's own run fields
+//   decay(dt)*         frame, every state: fade glows and the like
+//   idle(dt, clock)*   frame, before the first input: the attract-mode animation
+//   step(dt)*          frame, in play, after hitstop: the game itself
+//   dead(dt)*          frame, after death: camera drift
+//   syncHUD(dt)*       frame: push run state into the HUD
+//   render(t)*         frame: draw everything
+//   wake()*            start the continuous audio (begin, resume, revive)
+//   hush()*            stop it (die, pause, ad break)
+//   crash(cause, hit)* die: detach the player and fire the death effects
+//   record()*          die: persist bests; return true if this run set one
+//   overPanel()*       die: fill the game's own game-over fields
+//   revive()*          after a rewarded ad: put the player back in play
+//   slow(dt)           frame, in play, before hitstop; returns a time scale
+//   launch()           beginRun only: first-input effects
+//   tap()              press while already running (a second tap)
+//   key(e)             keydown the kernel didn't handle
+//   blocked()          true while input and stepping must stop (orientation gate)
+//   dying(cause, hit)  die, first thing; return true to cancel the death
+//   celebrate(i)       five times after a new best: burst stars around the player
+//   pilot()            true when a competent player would be holding right now,
+//                      judged from visible state only. Drives tools/triage.mjs.
+//   moment()           the beat that happened this frame ('hook', 'boom', …) or
+//                      null; names the captions in tools/trailer.mjs. dev-only.
+const G = {
+  overDelay: 620,                   // ms from death to the game-over panel
+  resumeInvuln: 0.4,                // seconds of grace after unpausing
+  dim: 'rgba(159,166,192,.4)',      // the sound button when muted
+  banner: { box: 'chain', text: 'chain', color: 'var(--gold)', ms: 1300 }
+};
+
+// Synthesised audio, no asset files. One context and one master gain, which
+// mute and ad-ducking both drive — anything routed through `master` (a game's
+// music, its engine loop) is covered for free. A game calls init() with its
+// storage key, master level, and its own event sounds; it must supply die().
+const Sound = {
+  key: '', gain: 0.4, ctx: null, master: null, on: true, ducked: false, ready: false,
+  init(key, gain, fx) {
+    this.key = key; this.gain = gain; this.on = store(key) !== '0';
+    return Object.assign(this, fx);
+  },
+  boot() {
+    if (this.ready) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.on ? this.gain : 0;
+      this.master.connect(this.ctx.destination);
+      this.ready = true;
+    } catch (e) {}
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{}); },
+  level() { return (this.on && !this.ducked) ? this.gain : 0; },
+  duck(on) { this.ducked = on; if (this.master) this.master.gain.setTargetAtTime(this.level(), this.ctx.currentTime, 0.02); },
+  toggle() {
+    this.on = !this.on; store(this.key, this.on ? '1' : '0');
+    if (this.master) this.master.gain.setTargetAtTime(this.level(), this.ctx.currentTime, 0.02);
+    return this.on;
+  },
+  tone(f, d, type, v, to) {
+    if (!this.ready || !this.on) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(f, t);
+    if (to) o.frequency.exponentialRampToValueAtTime(Math.max(20, to), t + d);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + d + 0.02);
+  },
+  noise(d, v, cut) {
+    if (!this.ready || !this.on) return;
+    const t = this.ctx.currentTime;
+    const n = Math.floor(this.ctx.sampleRate * d);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const arr = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) arr[i] = (Math.random()*2-1) * (1 - i/n);
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type='lowpass';
+    f.frequency.setValueAtTime(cut || 1500, t);
+    f.frequency.exponentialRampToValueAtTime(200, t + d);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t);
+  },
+  ui() { this.tone(520, 0.07, 'square', 0.09, 700); },
+
+};
+
+// Particles and expanding rings. Drawing stays in the game (each has its own
+// look); the kernel owns the pools so resetRun can clear them.
+const parts = [], waves = [];
+
+// Defaults a call can leave out. A game overrides with Object.assign(FX, {...}).
+const FX = { color: '#7CFFB2', maxSpeed: 240, maxR: 3.2, drag: 1.7,
+                    r0: 10, waveR: 260, life: 0.7, waveColor: '#58D7FF' };
+
+function burst(x, y, n, o) {
+  o = o || {};
+  for (let i = 0; i < n; i++) {
+    const a = o.angle !== undefined ? o.angle + rand(-o.spread, o.spread) : rand(0, TAU);
+    const s = rand(o.minSpeed || 40, o.maxSpeed || FX.maxSpeed);
+    parts.push({ x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+      life: rand(o.minLife || 0.25, o.maxLife || 0.7), age:0,
+      r: rand(o.minR || 1.2, o.maxR || FX.maxR), c: o.color || FX.color, drag: o.drag || FX.drag });
+  }
+}
+function shockwave(x, y, o) {
+  o = o || {};
+  waves.push({ x:x, y:y, r0:o.r0||FX.r0, maxR:o.maxR||FX.waveR, age:-(o.delay||0),
+    life:o.life||FX.life, color:o.color||FX.waveColor, width:o.width||5 });
+}
+function stepFx(dt) {
+  for (let i = parts.length-1; i>=0; i--) {
+    const p = parts[i]; p.age += dt;
+    if (p.age >= p.life) { parts.splice(i,1); continue; }
+    const d = Math.exp(-p.drag*dt); p.vx*=d; p.vy*=d;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+  }
+  for (let i = waves.length-1; i>=0; i--) { waves[i].age += dt; if (waves[i].age >= waves[i].life) waves.splice(i,1); }
+}
+
+// Portal SDK wrapper: Poki, CrazyGames or the Android host, degrading to a
+// no-op so the game plays identically with an ad blocker on. commercial() and
+// rewarded() return promises; nothing else in a game knows where it is.
+
+// Mute audio and swallow input for the duration of an ad break. Input stays
+// locked until the callback, so every path through an ad must settle exactly once.
+function adLock(on) {
+  input.locked = on; input.held = false;
+  if (on) { G.hush(); Sound.duck(true); } else Sound.duck(false);
+}
+
+// Ad placement knobs — WHEN an ad is asked for; the Portal only knows HOW.
+// Defaults ship in the bundle. BUILD.configUrl (a per-target build flag, empty
+// until a host exists) names a flat JSON of the same keys that overrides them
+// at boot, so cadence changes without a store build. The last fetched set is
+// cached, so it also applies offline; a fetch that fails changes nothing.
+const Ads = {
+  ads: true,           // master: false silences both kinds
+  interstitial: true,  // the between-run ad
+  revive: true,        // the rewarded continue
+  everyDeaths: 1,      // interstitial on every Nth retry
+  minGap: 0,           // seconds between interstitials
+  graceRetries: 0,     // no interstitial on the first N retries of a session
+  _since: 0, _retries: 0, _last: -1e9,
+  apply(j) {
+    for (const k of ['everyDeaths', 'minGap', 'graceRetries']) if (typeof j[k] === 'number' && j[k] >= 0) this[k] = j[k];
+    for (const k of ['ads', 'interstitial', 'revive']) if (typeof j[k] === 'boolean') this[k] = j[k];
+  },
+  async load() {
+    try { this.apply(JSON.parse(store('arcade.ads')) || {}); } catch (e) {}
+    if (!BUILD.configUrl) return;
+    try {
+      const j = await (await fetch(BUILD.configUrl, { cache: 'no-store' })).json();
+      this.apply(j); store('arcade.ads', JSON.stringify(j));
+    } catch (e) {}
+  },
+  // Called once per retry. True when this retry should carry an interstitial.
+  wantInterstitial(now = performance.now()) {
+    if (!this.ads || !this.interstitial) return false;
+    if (++this._retries <= this.graceRetries) return false;
+    if (++this._since < this.everyDeaths || now - this._last < this.minGap * 1000) return false;
+    this._since = 0; this._last = now;
+    return true;
+  }
+};
+
+// The Android host can't return a value from a JavascriptInterface call, so
+// each ad request carries a ticket the native side calls back with.
+const adCalls = new Map();
+let adTicket = 0;
+function nativeAd(method) {
+  return new Promise(res => {
+    const id = ++adTicket;
+    adCalls.set(id, res);
+    // Only a genuinely dead host should trip this. A real rewarded video can
+    // legitimately run 30s+, and resolving early would strand the callback.
+    setTimeout(() => { if (adCalls.has(id)) { adCalls.delete(id); res(false); } }, 90000);
+    try { window[Portal.native][method](id); }
+    catch (e) { adCalls.delete(id); res(false); }
+  });
+}
+
+const Portal = {
+  kind: 'none', inPlay: false, native: null,
+  // Wire the native bridge (Android's JavascriptInterface, or the iOS shim of
+  // it): `iface` is the object the wrapper injects, `callback` the window
+  // function its AdHost answers tickets on.
+  android(iface, callback) {
+    this.native = iface;
+    window[callback] = function (id, ok) {
+      const fn = adCalls.get(id);
+      if (!fn) return;
+      adCalls.delete(id);
+      fn(!!ok);
+    };
+  },
+  detect() {
+    if (typeof window.PokiSDK !== 'undefined') this.kind = 'poki';
+    else if (window.CrazyGames && window.CrazyGames.SDK) this.kind = 'crazy';
+    // The store wrappers inject the same JavascriptInterface shape (iOS shims it
+    // over a WKScriptMessageHandler), so both are the 'android' kind here.
+    else if (this.native && window[this.native] && (BUILD.portal === 'android' || BUILD.portal === 'ios')) this.kind = 'android';
+  },
+  async init() {
+    this.detect();
+    try {
+      if (this.kind === 'poki') await window.PokiSDK.init();
+      else if (this.kind === 'crazy') await window.CrazyGames.SDK.init();
+    } catch (e) { this.kind = 'none'; }
+  },
+  loadingFinished() { try { if (this.kind === 'poki') window.PokiSDK.gameLoadingFinished(); } catch (e) {} },
+  gameplayStart() {
+    if (this.inPlay) return; this.inPlay = true;
+    try {
+      if (this.kind === 'poki') window.PokiSDK.gameplayStart();
+      else if (this.kind === 'crazy') window.CrazyGames.SDK.game.gameplayStart();
+    } catch (e) {}
+  },
+  gameplayStop() {
+    if (!this.inPlay) return; this.inPlay = false;
+    try {
+      if (this.kind === 'poki') window.PokiSDK.gameplayStop();
+      else if (this.kind === 'crazy') window.CrazyGames.SDK.game.gameplayStop();
+    } catch (e) {}
+  },
+  // Interstitial between runs. Always resolves — never blocks the game.
+  commercial() {
+    this.gameplayStop(); adLock(true);
+    return new Promise(res => {
+      let done = false;
+      const fin = () => { if (done) return; done = true; adLock(false); res(); };
+      try {
+        if (this.kind === 'poki') { window.PokiSDK.commercialBreak().then(fin, fin); return; }
+        if (this.kind === 'crazy') { window.CrazyGames.SDK.ad.requestAd('midgame', { adFinished: fin, adError: fin }); return; }
+        if (this.kind === 'android') { nativeAd('showInterstitial').then(fin, fin); return; }
+      } catch (e) {}
+      fin();
+    });
+  },
+  // Rewarded ad for the continue. Resolves true only on a real completed view.
+  rewarded() {
+    this.gameplayStop(); adLock(true);
+    return new Promise(res => {
+      let done = false;
+      const fin = ok => { if (done) return; done = true; adLock(false); res(!!ok); };
+      try {
+        if (this.kind === 'poki') { window.PokiSDK.rewardedBreak().then(ok => fin(ok), () => fin(false)); return; }
+        if (this.kind === 'crazy') { window.CrazyGames.SDK.ad.requestAd('rewarded', { adFinished: () => fin(true), adError: () => fin(false) }); return; }
+        if (this.kind === 'android') { nativeAd('showRewarded').then(ok => fin(ok), () => fin(false)); return; }
+      } catch (e) {}
+      // Never reward when the SDK is blocked — portals forbid it.
+      fin(BUILD.devReward === true);
+    });
+  }
+};
+
+// The shell around a game: canvas and view, overlay layers, the run lifecycle
+// (start / begin / die / pause / retry / revive), input, and the frame loop.
+// Everything game-shaped is reached through the hooks in G.
+
+/* =========================================================
+   VIEW
+   ========================================================= */
+
+const canvas = el('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+const view = { w:0, h:0, dpr:1, scale:1 };
+
+function resize() {
+  const de = document.documentElement;
+  const w = Math.max(1, Math.round(window.innerWidth  || de.clientWidth));
+  const h = Math.max(1, Math.round(window.innerHeight || de.clientHeight));
+  const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+  view.w = w; view.h = h; view.dpr = dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  G.layout();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+/* =========================================================
+   LAYERS
+   ========================================================= */
+
+const CONTINUE_UI = BUILD.continueUI || 'ad';
+const layers = { hud: el('hud'), intro: el('intro'), over: el('over'), paused: el('paused') };
+
+function show(name) {
+  for (const k in layers) layers[k].classList.toggle('on',
+    k === name || (name === 'play' && k === 'hud') || (name === 'intro' && k === 'hud'));
+  if (name === 'over' || name === 'paused') layers.hud.classList.add('on');
+  el('corner').classList.toggle('hide-pause', name !== 'play' && name !== 'paused');
+  if (name !== 'intro') el('intro').classList.remove('on');
+}
+
+let bannerT = null;
+function banner(text, color) {
+  const B = G.banner, box = el(B.box), t = el(B.text);
+  t.textContent = text; t.style.color = color || B.color;
+  if (B.shadow) t.style.textShadow = '0 0 30px ' + (color || B.shadow) + 'aa';
+  if (B.pop) { box.classList.remove('on'); void box.offsetWidth; }   // restart the animation
+  box.classList.add('on');
+  clearTimeout(bannerT);
+  bannerT = setTimeout(() => box.classList.remove('on'), B.ms);
+}
+const bannerShown = () => !!bannerT;
+
+/* =========================================================
+   RUN LIFECYCLE
+   ========================================================= */
+
+function resetRun() {
+  run.score = 0; run.bestChain = 0;
+  run.shake = 0; run.hitstop = 0; run.flash = 0; run.time = 0;
+  run.awaitFirst = true; run.engaged = false; run.canRetry = false;
+  run.revived = false; run.cause = '';
+  parts.length = 0; waves.length = 0;
+}
+
+// The game is live from the first frame; the run only *begins* on first input.
+// That is what keeps this at zero clicks to gameplay, and it is also exactly
+// when portals want gameplayStart() to fire.
+function startRun(teach) { resetRun(); G.reset(teach); run.state = STATE.PLAY; show('intro'); }
+
+function beginRun() {
+  if (!run.awaitFirst) return;
+  run.awaitFirst = false;
+  show('play');
+  Sound.boot(); Sound.resume(); G.wake();
+  Portal.gameplayStart();
+  if (G.launch) G.launch();
+}
+
+function die(cause, hitObj) {
+  if (run.state !== STATE.PLAY) return;
+  if (G.dying && G.dying(cause, hitObj)) return;
+  run.state = STATE.DEAD; run.cause = cause;
+  run.shake = 1; run.flash = 0.5; haptic([50, 40, 90]);
+  input.held = false;
+  G.crash(cause, hitObj);
+  Sound.die(); G.hush();
+  Portal.gameplayStop();
+
+  run.score = Math.round(run.score);
+  const isBest = G.record();
+
+  setTimeout(() => {
+    run.canRetry = true;
+    el('overLabel').textContent = cause;
+    G.overPanel();
+    el('finalBest').textContent = run.best.toLocaleString();
+    el('bestFlag').classList.toggle('on', isBest);
+    layers.over.classList.toggle('record', isBest);
+    // A new best is celebrated: the panel's CSS spins a light ray behind the
+    // number, and the game bursts stars around the player a few times.
+    if (isBest && G.celebrate) for (let i = 0; i < 5; i++) setTimeout(() => G.celebrate(i), i * 320);
+    el('revive').style.display = (CONTINUE_UI === 'none' || !Ads.ads || !Ads.revive || run.revived) ? 'none' : '';
+    show('over');
+  }, G.overDelay);
+}
+
+function doPause() {
+  if (run.state !== STATE.PLAY) return;
+  run.state = STATE.PAUSE; input.held = false;
+  Portal.gameplayStop(); G.hush(); show('paused');
+}
+function doResume() {
+  if (run.state !== STATE.PAUSE) return;
+  run.state = STATE.PLAY; run.invuln = Math.max(run.invuln, G.resumeInvuln);
+  show('play'); Sound.resume(); G.wake(); Portal.gameplayStart();
+}
+function giveUp() { run.state = STATE.PLAY; run.invuln = 0; show('play'); die('Gave up'); }
+
+async function retry() {
+  if (run.state !== STATE.DEAD || !run.canRetry) return;
+  run.canRetry = false;
+  Sound.ui(); show('none');                 // blank while the interstitial runs
+  if (Ads.wantInterstitial()) await Portal.commercial();
+  startRun();
+}
+
+function toggleSound() { Sound.boot(); const on = Sound.toggle(); el('btnSound').style.color = on ? 'var(--ink)' : G.dim; }
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+
+function press(e) {
+  if (e && e.cancelable) e.preventDefault();
+  if (input.locked || (G.blocked && G.blocked())) return;
+  if (run.state === STATE.DEAD) { retry(); return; }
+  Sound.boot(); Sound.resume();
+  if (e && e.clientX !== undefined) { input.x = e.clientX; input.y = e.clientY; }
+  if (run.awaitFirst) beginRun();
+  else if (G.tap) G.tap();
+  input.held = true;
+}
+function release(e) { if (e && e.cancelable) e.preventDefault(); input.held = false; }
+
+canvas.addEventListener('pointerdown', press);
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('wheel', e => { if (e.cancelable) e.preventDefault(); }, { passive:false });
+window.addEventListener('keydown', e => {
+  if (e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp'||e.code==='KeyW') {
+    if (e.repeat) return;
+    if (run.state === STATE.DEAD) { e.preventDefault(); retry(); return; }
+    press(e);
+  } else if ((e.code==='Escape' && BUILD.escPause) || e.code==='KeyP') {
+    if (run.state===STATE.PLAY) doPause(); else if (run.state===STATE.PAUSE) doResume();
+  } else if (e.code==='KeyM') toggleSound();
+  else if (G.key) G.key(e);
+});
+window.addEventListener('keyup', e => {
+  if (e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp'||e.code==='KeyW') release(e);
+});
+window.addEventListener('blur', () => { input.held=false; if (run.state===STATE.PLAY) doPause(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { input.held=false; if (run.state===STATE.PLAY) doPause(); }
+});
+
+// Tap anywhere on the game-over screen — except on the rewarded button.
+el('over').addEventListener('pointerdown', e => {
+  if (e.target.closest && e.target.closest('#revive')) return;
+  if (e.cancelable) e.preventDefault();
+  retry();
+});
+el('revive').addEventListener('pointerdown', e => e.stopPropagation());
+el('again').addEventListener('click', e => { e.preventDefault(); retry(); });
+el('revive').addEventListener('click', async () => {
+  Sound.ui();
+  const ok = await Portal.rewarded();
+  if (!ok) return;
+  run.revived = true; run.state = STATE.PLAY;
+  G.revive();
+  show('play'); Sound.resume(); G.wake(); Portal.gameplayStart();
+});
+el('resume').addEventListener('click', () => { Sound.ui(); doResume(); });
+el('quit').addEventListener('click', () => { Sound.ui(); giveUp(); });
+el('btnPause').addEventListener('click', () => {
+  if (run.state===STATE.PLAY) doPause(); else if (run.state===STATE.PAUSE) doResume();
+});
+el('btnSound').addEventListener('click', toggleSound);
+
+/* =========================================================
+   LOOP
+   ========================================================= */
+
+let last = performance.now(), clock = 0;
+
+function frame(now) {
+  let dt = (now-last)/1000; last = now;
+  if (dt > 0.05) dt = 0.05;   // clamp after tab switches / hitches
+  clock += dt;
+
+  // Decays that run in every state
+  run.shake = Math.max(0, run.shake - dt*2.6);
+  run.flash = Math.max(0, run.flash - dt*2.2);
+  G.decay(dt);
+  stepFx(dt);
+
+  if (G.blocked && G.blocked()) {
+    input.held = false;
+    G.render(clock);
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  if (run.state === STATE.PLAY && run.awaitFirst) {
+    G.idle(dt, clock);
+  } else if (run.state === STATE.PLAY) {
+    const scale = G.slow ? G.slow(dt) : 1;
+    if (run.hitstop > 0) run.hitstop -= dt;
+    else {
+      dt *= scale;
+      run.invuln = Math.max(0, run.invuln - dt);
+      run.time += dt;
+      G.step(dt);
+    }
+  } else if (run.state === STATE.DEAD) {
+    G.dead(dt);
+  }
+
+  G.syncHUD(dt);
+  G.render(clock);
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+
+// One handle every game exposes, so a harness can drive any of them the same
+// way (tools/triage.mjs). Games add their own richer handle beside it.
+window.__game = { run, input, STATE, G, Ads, begin: beginRun, restart: startRun };
+
+
+// Android's back button: pause a live run rather than dropping out of the app.
+// Returns true if the game consumed it, false to let the host close.
+window.__gameBack = function () {
+  if (run.state === STATE.PLAY && !run.awaitFirst) { doPause(); return true; }
+  if (run.state === STATE.PAUSE) { doResume(); return true; }
+  return false;
+};
+
+async function boot() {
+  resize();
+  el('btnSound').style.color = Sound.on ? 'var(--ink)' : G.dim;
+  el('finalBest').textContent = run.best.toLocaleString();
+  if (CONTINUE_UI === 'none') el('revive').style.display = 'none';
+  else el('revive').innerHTML = '<span aria-hidden="true">&#9654;</span>&nbsp; Continue &mdash; watch ad';
+  await Portal.init();
+  Ads.load();                              // not awaited: the first retry is seconds away, boot is not
+  Portal.loadingFinished();
+  startRun();
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   CONSTANTS
+   ========================================================= */
+
+const WORLD_W    = 620;      // corridor width in world units
+const HALF_W     = WORLD_W / 2;
+const PLAY_RATIO = 0.62;     // play rect width as a fraction of its height, capped
+
+// One force, one model. Free flight is pure ballistics: gravity is the ONLY
+// thing acting on you, so climbing bleeds speed and falling regains it. The
+// jetpack fires solely while you hold a tether, feeding energy into the swing.
+const GRAVITY   = 780;       // world units / s^2
+const V_LAUNCH  = 1000;      // opening jetpack kick
+const V_MAX     = 1280;      // speed ceiling
+const V_ANCHOR  = 430;       // a catch always leaves you this much to swing on
+const WIND_ACC  = 900;       // tangential jetpack accel while anchored
+
+const BODY_R    = 12;
+const CAP_PAD   = 172;       // anchor reach beyond a pole's own radius
+const TETHER_MIN = 58;
+const ORB_CHARGE = 6;        // orbs needed to fill the power-up bar
+const BOOM_TIME  = 1.5;      // seconds of sonic boom
+const BOOM_MULT  = 1.6;      // times the normal speed ceiling, straight up
+const CLIMB_CHARGE = 1 / 250; // orbs per metre of new altitude: pure climbing fills the bar in 1500 m
+const MIN_REACH  = 120;      // every pole must offer at least this much swing room
+const POLE_X_MAX = HALF_W - BODY_R - MIN_REACH;   // so keep them off the rails
+
+const CHAIN_WINDOW = 2.4;
+
+/* =========================================================
+   AUDIO — the kernel owns the context; these are Slinger's sounds
+   ========================================================= */
+
+Sound.init('slinger.sound', 0.4, {
+  jet: null,
+  // Continuous jet hiss, gain tracks remaining thrust.
+  startJet() {
+    if (!this.ready || this.jet) return;
+    const t = this.ctx.currentTime;
+    const n = Math.floor(this.ctx.sampleRate * 2);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const arr = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) arr[i] = Math.random()*2-1;
+    const src = this.ctx.createBufferSource(); src.buffer = buf; src.loop = true;
+    const f = this.ctx.createBiquadFilter(); f.type = 'bandpass'; f.frequency.value = 700; f.Q.value = 0.7;
+    const g = this.ctx.createGain(); g.gain.value = 0;
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t);
+    this.jet = { src: src, g: g, f: f };
+  },
+  setJet(v, freq) {
+    if (!this.jet) return;
+    const t = this.ctx.currentTime;
+    this.jet.g.gain.setTargetAtTime(v * 0.11, t, 0.08);
+    this.jet.f.frequency.setTargetAtTime(420 + freq * 620, t, 0.1);
+  },
+  stopJet() {
+    if (!this.jet) return;
+    const j = this.jet; this.jet = null;
+    try { j.g.gain.setTargetAtTime(0, this.ctx.currentTime, 0.1); } catch (e) {}
+    setTimeout(() => { try { j.src.stop(); } catch (e) {} }, 500);
+  },
+  anchor()  { this.tone(320, 0.12, 'triangle', 0.22, 660); },
+  sling(n)  { this.tone(300 + n*44, 0.2, 'sawtooth', 0.17, 900); this.noise(0.12, 0.09, 2600); },
+  wall()    { this.tone(240, 0.1, 'triangle', 0.16, 480); },
+  orb()     { this.tone(880, 0.09, 'square', 0.1, 1300); },
+  milestone(){ this.tone(523,0.13,'triangle',0.15,660); setTimeout(()=>this.tone(784,0.13,'triangle',0.15,880),70); setTimeout(()=>this.tone(1046,0.3,'sine',0.14,1250),145); },
+  warn()    { this.tone(180, 0.16, 'square', 0.13, 120); },
+  charged() { this.tone(660,0.10,'triangle',0.13,880); setTimeout(()=>this.tone(990,0.22,'sine',0.12,1320),90); },
+  boom()    {
+    this.noise(0.9, 0.35, 900);
+    this.tone(70, 0.9, 'sawtooth', 0.26, 420);
+    this.tone(140, 0.7, 'square', 0.12, 900);
+    setTimeout(()=>this.tone(1200, 0.5, 'sine', 0.10, 300), 60);
+  },
+  shatter() { this.noise(0.35, 0.28, 3200); this.tone(240,0.25,'square',0.12,90); },
+  die()     { this.noise(0.8, 0.4, 2600); this.tone(190, 0.7, 'sawtooth', 0.2, 34); },
+});
+
+
+/* =========================================================
+   MUSIC — an original generative score, written in code.
+   Zero bytes, no licence, and it reacts to the climb: layers
+   arrive with altitude, the filter opens as the air thins,
+   and everything darkens the moment you start falling.
+   ========================================================= */
+
+const Music = {
+  out:null, pad:[], padF:null, timer:null, on:false,
+  step:0, next:0, bpm:82,
+  intensity:0, bright:0, tension:0, tensionT:0,
+
+  // A major: I - V - vi - IV. Semitones above A2 (110 Hz).
+  PROG: [ [0,4,7,11], [7,11,14], [9,12,16], [5,9,12,16] ],
+  freq(semi) { return 110 * Math.pow(2, semi/12); },
+
+  start() {
+    if (!Sound.ready || this.on) return;
+    const c = Sound.ctx;
+    this.out = c.createGain();
+    this.out.gain.value = 0;
+    this.out.connect(Sound.master);
+    this.out.gain.setTargetAtTime(0.42, c.currentTime, 1.4);   // ease in
+
+    this.padF = c.createBiquadFilter();
+    this.padF.type = 'lowpass';
+    this.padF.frequency.value = 420;
+    this.padF.Q.value = 0.7;
+    const pg = c.createGain(); pg.gain.value = 0.15;
+    this.padF.connect(pg); pg.connect(this.out);
+
+    this.pad = [];
+    for (let i = 0; i < 3; i++) {
+      const o = c.createOscillator();
+      o.type = i === 0 ? 'triangle' : 'sawtooth';
+      o.frequency.value = 220;
+      o.detune.value = (i-1) * 7;
+      const g = c.createGain(); g.gain.value = i === 0 ? 0.5 : 0.2;
+      o.connect(g); g.connect(this.padF);
+      o.start();
+      this.pad.push({ o:o, g:g });
+    }
+
+    this.step = 0;
+    this.next = c.currentTime + 0.15;
+    this.on = true;
+    this.timer = setInterval(() => this.tick(), 60);
+  },
+
+  stop() {
+    if (!this.on) return;
+    this.on = false;
+    clearInterval(this.timer); this.timer = null;
+    const c = Sound.ctx, out = this.out, pad = this.pad;
+    try { out.gain.setTargetAtTime(0, c.currentTime, 0.3); } catch (e) {}
+    setTimeout(() => {
+      for (const v of pad) { try { v.o.stop(); } catch (e) {} }
+      try { out.disconnect(); } catch (e) {}
+    }, 1100);
+    this.pad = []; this.out = null;
+  },
+
+  // Driven from the game loop each frame.
+  set(alt, isFalling, chain) {
+    this.bright = clamp(alt / 1800, 0, 1);
+    this.tensionT = isFalling ? 1 : 0;
+    this.intensity = clamp(0.22 + chain * 0.09 + this.bright * 0.45, 0, 1);
+    this.bpm = 82 + this.bright * 13;
+  },
+
+  tick() {
+    if (!this.on || !Sound.ctx) return;
+    const c = Sound.ctx;
+    this.tension += (this.tensionT - this.tension) * 0.18;
+    const sp16 = (60 / this.bpm) / 4;
+    let guard = 0;
+    while (this.next < c.currentTime + 0.3 && guard++ < 40) {
+      this.emit(this.step, this.next);
+      this.step++;
+      this.next += sp16;
+    }
+    const cut = 360 + this.bright * 2500 - this.tension * 1100;
+    this.padF.frequency.setTargetAtTime(Math.max(180, cut), c.currentTime, 0.3);
+    for (let i = 0; i < this.pad.length; i++) {
+      this.pad[i].o.detune.setTargetAtTime((i-1)*7 + this.tension * 26, c.currentTime, 0.3);
+    }
+  },
+
+  emit(step, when) {
+    const bar = Math.floor(step / 16), s = step % 16;
+    const chord = this.PROG[bar % this.PROG.length];
+
+    if (s === 0) {
+      for (let i = 0; i < this.pad.length; i++) {
+        const f = this.freq(chord[i % chord.length] + (i === 0 ? 0 : 12));
+        this.pad[i].o.frequency.setTargetAtTime(f, when, 0.4);
+      }
+    }
+    if (s === 0)  this.bass(chord[0], when, 0.95);
+    if (s === 6)  this.bass(chord[0], when, 0.5);
+    if (s === 10) this.bass(chord[chord.length-1] - 12, when, 0.45);
+
+    // Arpeggio joins once you're actually climbing, and thickens with the chain.
+    if (this.intensity > 0.3 && s % 2 === 0) {
+      const idx = Math.floor(step / 2);
+      const oct = (idx % (chord.length * 2)) >= chord.length ? 12 : 0;
+      const n = chord[idx % chord.length] + oct + 12;
+      if (Math.random() < 0.4 + this.intensity * 0.5) {
+        this.pluck(n, when, (0.09 + this.intensity * 0.08) * (1 - this.tension * 0.6));
+      }
+    }
+    // High bells only once the sky has gone dark.
+    if (this.bright > 0.42 && (s === 4 || s === 12) && Math.random() < 0.3) {
+      this.bell(chord[(Math.random()*chord.length)|0] + 24, when, 0.06 * (1 - this.tension));
+    }
+  },
+
+  bass(semi, when, v) {
+    const c = Sound.ctx;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'triangle'; o.frequency.setValueAtTime(this.freq(semi - 12), when);
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(v * 0.3, when + 0.02);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.6);
+    o.connect(g); g.connect(this.out); o.start(when); o.stop(when + 0.65);
+  },
+  pluck(semi, when, v) {
+    const c = Sound.ctx;
+    const o = c.createOscillator(), g = c.createGain(), f = c.createBiquadFilter();
+    o.type = 'triangle'; o.frequency.setValueAtTime(this.freq(semi), when);
+    f.type = 'highpass'; f.frequency.value = 320;
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(v, when + 0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 0.44);
+    o.connect(f); f.connect(g); g.connect(this.out); o.start(when); o.stop(when + 0.48);
+  },
+  bell(semi, when, v) {
+    const c = Sound.ctx;
+    const o = c.createOscillator(), g = c.createGain();
+    o.type = 'sine'; o.frequency.setValueAtTime(this.freq(semi), when);
+    g.gain.setValueAtTime(0, when);
+    g.gain.linearRampToValueAtTime(v, when + 0.015);
+    g.gain.exponentialRampToValueAtTime(0.0001, when + 1.5);
+    o.connect(g); g.connect(this.out); o.start(when); o.stop(when + 1.55);
+  }
+};
+
+// Ads on Android go through a ticketed bridge; the names are fixed by AdHost.kt.
+Portal.android('SlingerNative', '__slingerAd');
+
+// Portrait play rect, letterboxed on wide screens. Filled in by G.layout().
+Object.assign(view, { px:0, py:0, pw:0, ph:0, visH:0, speedScale:1 });
+
+/* =========================================================
+   WORLD
+   ========================================================= */
+
+const world = { poles: [], orbs: [], bars: [], genY: 0, side: 1 };   // side: which rail the next pole leans to
+
+const POLE_TYPES = [
+  { key:'std',   w:62, r:26, core:'#58D7FF', edge:'#14506E' },
+  { key:'small', w:24, r:17, core:'#B47CFF', edge:'#3A1F63' },
+  { key:'boost', w:14, r:23, core:'#7CFFB2', edge:'#136B45' }
+];
+const POLE_TOTAL = POLE_TYPES.reduce((a,t)=>a+t.w, 0);
+function rollPole() {
+  let r = Math.random() * POLE_TOTAL;
+  for (const t of POLE_TYPES) { r -= t.w; if (r <= 0) return t; }
+  return POLE_TYPES[0];
+}
+
+function addPole(x, y, type) {
+  // Reach is capped by the nearer rail: the whole capture field — and therefore
+  // every orbit it can produce — stays inside the corridor.
+  const room = HALF_W - BODY_R - Math.abs(x);
+  const cap = Math.min(type.r + CAP_PAD, room);
+  const p = { x:x, y:y, r:type.r, cap:cap, key:type.key,
+              core:type.core, edge:type.edge, glow:0, spin:rand(0,TAU), used:0 };
+  world.poles.push(p);
+  return p;
+}
+
+function clearOf(x, y, r) {
+  for (const p of world.poles) {
+    const dx = p.x-x, dy = p.y-y;
+    if (dx*dx + dy*dy < (p.cap + r + 30)*(p.cap + r + 30)) return false;
+  }
+  for (const b of world.bars) if (Math.abs(b.y - y) < 120) return false;
+  return true;
+}
+
+function resetWorld() {
+  world.poles.length = 0; world.orbs.length = 0; world.bars.length = 0;
+  world.genY = -420;
+  // A guaranteed first pole, offset so the opening kick doesn't fly past it.
+  // While coaching, plant it dead ahead so the lesson is the same every time.
+  addPole(Tutor.on ? 0 : rand(-90, 90), -560, POLE_TYPES[0]);
+  world.genY = -560;
+  world.side = 1;
+}
+
+// Generation walks upward: y decreases as you climb.
+function generateAhead(toY, metres) {
+  let guard = 0;
+  while (world.genY > toY && guard++ < 400) {
+    const gap = rand(385, 520) - Math.min(90, metres * 0.05);
+    world.genY -= Math.max(285, gap);
+    const y = world.genY;
+
+    // Hazard bar with a gap, once the player knows the basics.
+    if (metres > 260 && Math.random() < Math.min(0.26, 0.08 + metres * 0.00013)) {
+      const gw = clamp(230 - metres * 0.012, 150, 230);
+      const gx = rand(-HALF_W + gw*0.5 + 20, HALF_W - gw*0.5 - 20);
+      world.bars.push({ y:y, gx:gx, gw:gw, hit:0 });
+      // Something to grab just past it, or the gap is a dead end.
+      const lx = clamp(gx + rand(-70, 70), -POLE_X_MAX, POLE_X_MAX);
+      if (clearOf(lx, y - 355, 90)) addPole(lx, y - 355, POLE_TYPES[0]);
+      world.side = lx < 0 ? 1 : -1;          // the next pole goes to the other rail
+      world.genY = y - 355;
+      continue;
+    }
+
+    // Poles alternate rails, so every sling is a crossing rather than a coin flip.
+    // Anywhere on its side: a minimum offset made the crossings long enough to
+    // cut the median run by a third.
+    const t = rollPole();
+    const x = world.side * rand(0, POLE_X_MAX);
+    if (!clearOf(x, y, t.r)) continue;
+    addPole(x, y, t);
+    world.side = -world.side;
+
+    if (Math.random() < 0.5) {
+      const a0 = rand(0, TAU), n = randi(3, 5), arc = rand(0.8, 1.6), rr = t.r + rand(46, 92);
+      for (let i = 0; i < n; i++) {
+        const a = a0 + (i/(n-1) - 0.5) * arc;
+        world.orbs.push({ x: x + Math.cos(a)*rr, y: y + Math.sin(a)*rr, got:false, bob:Math.random()*TAU });
+      }
+    }
+  }
+}
+
+function cullBelow(y) {
+  for (let i = world.poles.length-1; i>=0; i--) if (world.poles[i].y > y) world.poles.splice(i,1);
+  for (let i = world.orbs.length-1; i>=0; i--)  if (world.orbs[i].y  > y) world.orbs.splice(i,1);
+  for (let i = world.bars.length-1; i>=0; i--)  if (world.bars[i].y  > y) world.bars.splice(i,1);
+}
+
+/* =========================================================
+   STATE
+   ========================================================= */
+
+const P = {
+  x:0, y:0, vx:0, vy:0, dir:-Math.PI/2,
+  anchor:null, lockout:null, ang:0, rad:0, omega:0, spin:1, arc:0
+};
+const speed   = () => Math.hypot(P.vx, P.vy);
+const climb   = () => -P.vy;             // positive while rising
+const falling = () => P.vy > 4;
+
+Object.assign(run, {
+  alt:0, top:0, slings:0, chain:0, freeT:0,
+  orbs:0, power:0, boom:0, everFull:false, coachBoost:false,
+  nextMile:250, warned:false,
+  best: parseInt(store('slinger.best')||'0',10) || 0
+});
+
+const cam = { y:0 };
+
+function metres() { return Math.max(0, -run.top / 10); }
+
+function multiplier() { return Math.min(5, 1 + Math.floor(run.chain / 3) * 0.5); }
+
+/* =========================================================
+/* =========================================================
+   COACH — the first run teaches itself
+
+   Not a separate mode: this is the real game with time slowed at each new
+   idea until the player performs it. Nobody reads a rules screen, but
+   everybody learns a control they were made to use once.
+   ========================================================= */
+
+const TUTOR_SLOW = 0.3;   // every step: enter at 0.3, complete at 1. Never lower: 0.16 read as "the game is broken".
+
+const Tutor = {
+  on:false, i:-1, scale:1, t:0, hold:0, rescues:0, done:false,
+  target:null, arc:null, wasHeld:false,
+
+  STEPS: [
+    { id:'anchor',
+      text:'Hold',
+      slow:TUTOR_SLOW,
+      // Not at launch: the first half second flies at full speed so the game
+      // has a speed before it has a lesson. Arms when a hold would catch.
+      arm(){ return run.time > 0.5 && !P.anchor && !!Tutor.catchable(); },
+      abort(){ return !P.anchor && !Tutor.near(); },
+      met(){ return !!P.anchor; } },
+
+    { id:'release',
+      text:'Let go on the green',
+      slow:TUTOR_SLOW, showArc:true,
+      // The swing plays at full speed; the world slows as the window nears.
+      arm(){ return !!P.anchor && Tutor.nearArc(0.5); },
+      met(){ return !P.anchor && run.slings > 0; } }
+    // The bar and the chain are visible in play; they teach themselves.
+  ],
+
+  // A pole a hold would actually catch right now.
+  catchable() {
+    for (const p of world.poles) {
+      if (p === P.lockout) continue;
+      const d = Math.hypot(P.x - p.x, P.y - p.y);
+      if (d <= p.cap && d >= p.r + 16) return p;
+    }
+    return null;
+  },
+  // Within `rad` of the release window along the direction of swing, or in it.
+  nearArc(rad) {
+    const r = this.arcRange(); if (!r) return false;
+    if (this.inArc()) return true;
+    const entry = P.omega >= 0 ? r.from : r.to;
+    const d = P.omega >= 0 ? entry - P.ang : P.ang - entry;
+    return ((d % TAU) + TAU) % TAU <= rad;
+  },
+
+  // Is a pole close enough to be the thing we're pointing at?
+  near() {
+    let best = null, bestD = Infinity;
+    for (const p of world.poles) {
+      if (p === P.lockout) continue;
+      const dx = P.x - p.x, dy = P.y - p.y, d = Math.hypot(dx, dy);
+      if (d < p.cap + 150 && d < bestD) { bestD = d; best = p; }
+    }
+    return best;
+  },
+
+  start(force) {
+    this.on = !!(force || !store('slinger.taught'));
+    this.i = -1; this.at = 0; this.scale = 1; this.t = 0; this.rescues = 0;
+    this.done = false; this.target = null; this.arc = null;
+    el('skip').classList.toggle('on', this.on);
+    this.say(null);
+    return this.on;
+  },
+
+  say(text, sub, go) {
+    const c = el('coach');
+    if (!text) { c.classList.remove('on','go'); el('coachT').textContent = ''; return; }
+    el('coachT').textContent = text;
+    el('coachS').innerHTML = sub || '';
+    c.classList.add('on');
+    c.classList.toggle('go', !!go);
+  },
+
+  finish(quiet) {
+    if (!this.on) return;
+    this.on = false; this.done = true; this.scale = 1; this.i = -1;
+    this.target = null; this.arc = null;
+    store('slinger.taught', '1');
+    el('skip').classList.remove('on');
+    el('bar').classList.remove('call');
+    this.say(null);
+    if (!quiet) { banner('YOU HAVE IT', '#7CFFB2'); Sound.milestone(); }
+  },
+
+  // Called every frame with UNSCALED dt, before the world is stepped.
+  update(dt) {
+    if (!this.on || run.state !== STATE.PLAY || run.awaitFirst) { this.scale = 1; return; }
+    this.t += dt;
+
+    // Between steps: wait for the next one to become relevant.
+    if (this.i < 0) {
+      this.scale = 1; this.target = null;
+      if (this.at >= this.STEPS.length) { this.finish(); return; }
+      if (this.STEPS[this.at].arm()) this.enter(this.at);
+      return;
+    }
+
+    const st = this.STEPS[this.i];
+    if (st.abort && st.abort()) { this.leave(); return; }
+    this.scale = st.slow;
+    this.target = st.showArc ? P.anchor : this.near();
+
+    // Prompt turns green the moment the input would actually pay off.
+    let go = false;
+    if (st.id === 'anchor')  go = !!this.near();
+    if (st.id === 'release') go = this.inArc();
+    this.say(st.text, st.sub, go);
+
+    if (st.met()) {
+      const nxt = this.i + 1;
+      this.leave();
+      this.at = nxt;
+      if (this.at >= this.STEPS.length) this.finish();
+    }
+  },
+
+  // Where on the current orbit does letting go actually send you up?
+  arcRange() {
+    if (!P.anchor) return null;
+    const s = P.omega >= 0 ? 1 : -1;
+    // Tangent is (-sin a, cos a) * s; upward means its y is comfortably negative.
+    // s*cos(a) < -0.62  =>  a sits in a half-open window of ~1.7 rad.
+    const half = Math.acos(0.62);
+    const c = s > 0 ? Math.PI : 0;
+    return { from: c - half, to: c + half };
+  },
+  inArc() {
+    const r = this.arcRange(); if (!r) return false;
+    let d = ((P.ang - (r.from + r.to)/2) % TAU + TAU + Math.PI) % TAU - Math.PI;
+    return Math.abs(d) <= (r.to - r.from)/2;
+  },
+
+  enter(i) {
+    this.i = i; this.t = 0;
+    const st = this.STEPS[i];
+    this.scale = st.slow;
+    this.target = st.showArc ? P.anchor : this.near();
+    this.say(st.text, st.sub, false);
+    el('bar').classList.toggle('call', !!st.callBar);
+    Sound.ui();
+  },
+
+  // Step no longer applies (they drifted out of range): stand down and wait
+  // rather than holding the world in slow motion forever.
+  leave() {
+    el('bar').classList.remove('call');
+    this.i = -1; this.t = 0; this.scale = 1; this.target = null;
+    this.say(null);
+  },
+
+  // Died mid-lesson: pack the coaching away but leave the flag unset, so the
+  // next run starts the tutorial over instead of dumping them in cold.
+  suspend() {
+    if (!this.on) return;
+    this.on = false; this.scale = 1; this.i = -1; this.target = null;
+    el('skip').classList.remove('on');
+    el('bar').classList.remove('call');
+    this.say(null);
+  },
+
+  // While coaching, a mistake shouldn't end the lesson.
+  rescue() {
+    if (!this.on || this.rescues >= 2) return false;
+    this.rescues++;
+    P.anchor = null; P.lockout = null; P.omega = 0;
+    P.vx = 0; P.vy = -V_LAUNCH * view.speedScale; P.dir = -Math.PI/2;
+    P.x = 0; P.y = cam.y + view.visH * 0.30;
+    run.invuln = 1.2; run.warned = false;
+    burst(P.x, P.y, 22, { color:'#7CFFB2', angle:Math.PI/2, spread:0.7, maxSpeed:300, maxLife:0.7 });
+    Sound.sling(1);
+    banner('ONE MORE GO', '#FFC24D');
+    return true;
+  },
+
+  // The release window, drawn on the orbit itself.
+  draw(t) {
+    if (!this.on || this.i < 0) return;
+    const st = this.STEPS[this.i];
+    const p = this.target;
+    if (!p) return;
+
+    if (st.showArc && P.anchor === p) {
+      const r = this.arcRange(); if (!r) return;
+      ctx.save();
+      ctx.globalCompositeOperation = 'lighter';
+      ctx.strokeStyle = 'rgba(124,255,178,' + (0.30 + 0.16*Math.sin(t*5)) + ')';
+      ctx.lineWidth = 13; ctx.lineCap = 'round';
+      ctx.beginPath(); ctx.arc(p.x, p.y, P.rad, r.from, r.to); ctx.stroke();
+      ctx.restore();
+    } else if (!st.showArc) {
+      ctx.save();
+      const k = 0.5 + 0.5*Math.sin(t*4.4);
+      ctx.globalCompositeOperation = 'lighter';
+      const g = ctx.createRadialGradient(p.x, p.y, p.r, p.x, p.y, p.cap);
+      g.addColorStop(0, 'rgba(124,255,178,' + (0.05 + 0.05*k) + ')');
+      g.addColorStop(1, 'rgba(124,255,178,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.cap, 0, TAU); ctx.fill();
+      ctx.strokeStyle = 'rgba(124,255,178,' + (0.45 + 0.4*k) + ')';
+      ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(p.x, p.y, p.cap * (0.96 + 0.04*k), 0, TAU); ctx.stroke();
+      ctx.restore();
+    }
+  }
+};
+
+/* =========================================================
+   PHYSICS
+   ========================================================= */
+
+function tryAnchor() {
+  let best = null, bestD = Infinity;
+  for (const p of world.poles) {
+    if (p === P.lockout) continue;
+    const dx = P.x - p.x, dy = P.y - p.y;
+    const d2 = dx*dx + dy*dy;
+    if (d2 < p.cap*p.cap && d2 > (p.r + BODY_R)*(p.r + BODY_R) && d2 < bestD) { bestD = d2; best = p; }
+  }
+  if (!best) return;
+
+  const dx = P.x - best.x, dy = P.y - best.y;
+  const rr = clamp(Math.sqrt(dx*dx + dy*dy), Math.max(TETHER_MIN, best.r + BODY_R + 8), best.cap);
+
+  P.anchor = best;
+  P.rad = rr;
+  P.ang = Math.atan2(dy, dx);
+  P.arc = 0;
+
+  // The tether goes taut: radial motion is absorbed, tangential motion is kept.
+  // That's a real rope jerk — and it's why the angle you arrive at matters.
+  const tx = -Math.sin(P.ang), ty = Math.cos(P.ang);
+  let vt = P.vx * tx + P.vy * ty;
+  const minV = V_ANCHOR * view.speedScale;
+  if (Math.abs(vt) < minV) vt = (vt >= 0 ? 1 : -1) * minV;   // the rescue floor
+  P.omega = vt / rr;
+  P.spin = vt >= 0 ? 1 : -1;
+
+  P.x = best.x + Math.cos(P.ang) * rr;
+  P.y = best.y + Math.sin(P.ang) * rr;
+  P.vx = tx * vt; P.vy = ty * vt;
+
+  best.glow = 1;
+  run.engaged = true;
+  run.hitstop = 0.04;
+  shockwave(P.x, P.y, { maxR: 160, life: 0.5, color: best.core, width: 4 });
+  burst(P.x, P.y, 10, { color: best.core, maxSpeed: 170, maxLife: 0.45 });
+  Sound.anchor(); haptic(12);
+}
+
+function releaseAnchor() {
+  const p = P.anchor;
+  if (!p) return;
+  const tx = -Math.sin(P.ang), ty = Math.cos(P.ang);
+  const vt = P.omega * P.rad;
+  P.vx = tx * vt; P.vy = ty * vt;
+  P.dir = Math.atan2(P.vy, P.vx);
+  P.anchor = null;
+  P.lockout = p;
+  p.used = 1;
+
+  run.slings++; run.chain++;
+  run.bestChain = Math.max(run.bestChain, run.chain);
+  run.freeT = 0;
+
+  const mult = multiplier();
+  let pts = 40;
+  if (p.key === 'small') pts += 35;              // harder to hold, worth more
+  if (p.key === 'boost') {
+    pts += 90;
+    const k = Math.min(1.3, V_MAX * view.speedScale / Math.max(1, speed()));
+    P.vx *= k; P.vy *= k;
+  }
+  if (run.engaged) run.score += Math.round(pts * mult);
+
+  burst(P.x, P.y, 14, { color:'#7CFFB2', angle:P.dir, spread:0.6, maxSpeed:300, maxLife:0.5 });
+  shockwave(P.x, P.y, { maxR:190, life:0.55, color:'#7CFFB2', width:5 });
+  Sound.sling(Math.min(5, run.chain));
+}
+
+function stepPlayer(dt) {
+  const g = GRAVITY * view.speedScale;
+  const vmax = V_MAX * view.speedScale;
+
+  if (run.boom > 0) {
+    stepBoom(dt);
+    if (P.x < -HALF_W + BODY_R) P.x = -HALF_W + BODY_R;
+    else if (P.x > HALF_W - BODY_R) P.x = HALF_W - BODY_R;
+    return;
+  }
+
+  if (P.anchor) {
+    if (!input.held || world.poles.indexOf(P.anchor) === -1) { releaseAnchor(); }
+    else {
+      const p = P.anchor;
+      // A real tether: gravity acts along the tangent, so you accelerate through
+      // the bottom of the arc and lose speed climbing the far side. The jetpack
+      // adds energy in whichever direction you're already swinging.
+      const gTan = g * Math.cos(P.ang) / P.rad;
+      const wind = (WIND_ACC * view.speedScale) * (P.omega >= 0 ? 1 : -1) / P.rad;
+      P.omega += (gTan + wind) * dt;
+
+      const vt = P.omega * P.rad;
+      if (Math.abs(vt) > vmax) P.omega = (vt >= 0 ? 1 : -1) * vmax / P.rad;
+
+      P.ang += P.omega * dt;
+      P.arc += Math.abs(P.omega) * dt;
+      P.spin = P.omega >= 0 ? 1 : -1;
+
+      P.x = p.x + Math.cos(P.ang) * P.rad;
+      P.y = p.y + Math.sin(P.ang) * P.rad;
+      const tx = -Math.sin(P.ang), ty = Math.cos(P.ang);
+      P.vx = tx * P.omega * P.rad; P.vy = ty * P.omega * P.rad;
+      P.dir = Math.atan2(P.vy, P.vx);
+      p.glow = 1;
+      if (Math.random() < dt * 12) burst(P.x, P.y, 1, { color: p.core, maxSpeed: 60, maxLife: 0.4 });
+    }
+  }
+
+  if (!P.anchor) {
+    if (P.lockout) {
+      const dx = P.x - P.lockout.x, dy = P.y - P.lockout.y;
+      const c = P.lockout.cap + 14;
+      if (dx*dx + dy*dy > c*c || world.poles.indexOf(P.lockout) === -1) P.lockout = null;
+    }
+    if (input.held) tryAnchor();
+
+    if (!P.anchor) {
+      // Pure ballistics. Gravity is the only force: climb and you bleed speed,
+      // fall and you gain it. Nothing else touches you.
+      P.vy += g * dt;
+      const sp = Math.hypot(P.vx, P.vy);
+      if (sp > vmax) { const k = vmax / sp; P.vx *= k; P.vy *= k; }
+      P.x += P.vx * dt;
+      P.y += P.vy * dt;
+      if (sp > 1) P.dir = Math.atan2(P.vy, P.vx);
+
+      run.freeT += dt;
+      if (run.freeT > CHAIN_WINDOW && run.chain > 0) run.chain = 0;
+      if (!run.warned && falling()) { run.warned = true; Sound.warn(); run.flash = Math.max(run.flash, 0.14); }
+      if (!falling()) run.warned = false;
+    }
+  }
+
+  if (!P.anchor) {
+    if (P.x < -HALF_W + BODY_R) { P.x = -HALF_W + BODY_R; bounceWall(-1); }
+    else if (P.x > HALF_W - BODY_R) { P.x = HALF_W - BODY_R; bounceWall(1); }
+  }
+}
+
+/* =========================================================
+   POWER-UP — orbs charge it, climbing trickles into it, the boost button spends it
+
+   The meter is the ring around the boost button, bottom-left; the button
+   brightens as it fills and becomes pressable on the frame it closes.
+   ========================================================= */
+
+function charge(nOrbs) {
+  if (run.orbs >= ORB_CHARGE) return;
+  run.orbs = Math.min(ORB_CHARGE, run.orbs + nOrbs);
+  run.power = run.orbs / ORB_CHARGE;
+  if (run.orbs >= ORB_CHARGE) {
+    Sound.charged();
+    banner('BOOST READY', '#58D7FF');
+    run.everFull = true;
+    // First time ever: the world slows until they press the button, the same
+    // way the tutor teaches the tether. One line of text, once.
+    if (!store('slinger.boosted') && run.state === STATE.PLAY) { run.coachBoost = true; Tutor.say('Tap to boost', null, true); }
+    run.flash = Math.max(run.flash, 0.12);
+  }
+}
+
+function fireBoom() {
+  if (run.orbs < ORB_CHARGE || run.boom > 0) return;
+  if (run.state !== STATE.PLAY || run.awaitFirst) return;
+
+  run.orbs = 0; run.power = 0;
+  run.boom = BOOM_TIME;
+  if (run.coachBoost) { run.coachBoost = false; Tutor.say(null); store('slinger.boosted', '1'); }
+  if (P.anchor) { P.anchor.used = 1; P.anchor = null; }
+  P.lockout = null; P.omega = 0;
+  P.vx = 0; P.vy = -V_MAX * view.speedScale * BOOM_MULT;
+  P.dir = -Math.PI/2;
+
+  // Nothing may kill you mid-boom — the whole point is that it clears a path.
+  run.invuln = Math.max(run.invuln, BOOM_TIME + 0.3);
+  run.shake = Math.max(run.shake, 0.7);
+  run.flash = Math.max(run.flash, 0.32);
+  shockwave(P.x, P.y, { maxR: view.visH*0.6, life:0.8, color:'#58D7FF', width:8 });
+  burst(P.x, P.y, 34, { color:'#58D7FF', angle:Math.PI/2, spread:0.8, maxSpeed:420, maxLife:0.8 });
+  banner('SONIC BOOM', '#58D7FF');
+  Sound.boom(); haptic([20, 30, 70]);
+}
+
+function shatterBar(b) {
+  for (let i = 0; i < 5; i++) {
+    const x = -HALF_W + (WORLD_W/4) * i + rand(-30, 30);
+    burst(x, b.y, 7, { color:'#FF4D6D', maxSpeed:280, maxLife:0.7, maxR:4 });
+  }
+  shockwave(P.x, b.y, { maxR: WORLD_W*0.7, life:0.5, color:'#FF4D6D', width:5 });
+  run.shake = Math.max(run.shake, 0.35);
+  Sound.shatter();
+}
+
+// Straight up at a fixed speed, flattening anything in the way.
+function stepBoom(dt) {
+  run.boom -= dt;
+  P.vx *= Math.exp(-6*dt);
+  P.vy = -V_MAX * view.speedScale * BOOM_MULT;
+  P.x += P.vx * dt;
+  P.y += P.vy * dt;
+  P.dir = -Math.PI/2;
+  run.freeT = 0;
+
+  for (let i = world.bars.length - 1; i >= 0; i--) {
+    const b = world.bars[i];
+    if (b.y <= P.y + 40 && b.y >= P.y - view.visH * 0.5) {
+      shatterBar(b); world.bars.splice(i, 1);
+    }
+  }
+  if (Math.random() < dt * 40) {
+    burst(P.x + rand(-10,10), P.y + 18, 2,
+          { color:'#58D7FF', angle:Math.PI/2, spread:0.5, maxSpeed:260, maxLife:0.45 });
+  }
+  if (run.boom <= 0) { run.boom = 0; P.vy = -V_MAX * view.speedScale; }
+}
+
+function bounceWall(side) {
+  if (P.anchor) return;
+  P.vx = -P.vx * 0.92;
+  P.dir = Math.atan2(P.vy, P.vx);
+  run.shake = Math.max(run.shake, 0.3);
+  shockwave(P.x, P.y, { maxR:150, life:0.45, color:'#58D7FF', width:4 });
+  burst(P.x, P.y, 8, { color:'#58D7FF', angle: side>0 ? Math.PI : 0, spread:0.9, maxSpeed:200, maxLife:0.4 });
+  Sound.wall();
+}
+
+/* =========================================================
+   COLLISION
+   ========================================================= */
+
+function checkCollisions() {
+  // Fell off the bottom of the view.
+  if (P.y > cam.y + view.visH * 0.5 + 40) {
+    if (Tutor.rescue()) return;
+    die('Fell'); return;
+  }
+  if (run.invuln > 0) return;
+
+  for (const p of world.poles) {
+    const dx = P.x-p.x, dy = P.y-p.y, rr = p.r + BODY_R;
+    if (dx*dx + dy*dy < rr*rr) {
+      if (Tutor.on) { if (Tutor.rescue()) return; }
+      die('Hit a pole', p); return;
+    }
+  }
+  for (const b of world.bars) {
+    if (Math.abs(P.y - b.y) < 14 + BODY_R) {
+      if (Math.abs(P.x - b.gx) > b.gw*0.5 - BODY_R) { die('Hit the girder', null); return; }
+      b.hit = 1;
+    }
+  }
+  for (const o of world.orbs) {
+    if (o.got) continue;
+    const dx = P.x-o.x, dy = P.y-o.y;
+    if (dx*dx + dy*dy < 30*30) {
+      o.got = true;
+      charge(1);
+      if (run.engaged) run.score += Math.round(20 * multiplier());
+      const sp = Math.max(1, speed());
+      const k = Math.min(V_MAX*view.speedScale, sp + 90*view.speedScale) / sp;
+      P.vx *= k; P.vy *= k;
+      burst(o.x, o.y, 9, { color:'#FFD98A', maxSpeed:150, maxLife:0.45 });
+      Sound.orb();
+    }
+  }
+}
+
+/* =========================================================
+   UI — Slinger's own buttons
+   ========================================================= */
+
+el('skip').addEventListener('pointerdown', e => { e.stopPropagation(); });
+el('skip').addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation(); Sound.ui(); Tutor.finish(true);
+});
+el('howto').addEventListener('click', e => {
+  e.preventDefault(); Sound.ui();
+  run.state = STATE.PLAY; show('none'); startRun(true);
+});
+
+/* =========================================================
+   SKY — palette climbs with altitude: dusk, thin air, space
+   ========================================================= */
+
+const SKY = [
+  { at:0,    top:[42,26,64],  mid:[92,44,58],  low:[196,96,58],  star:0.0 },
+  { at:600,  top:[16,26,72],  mid:[30,52,104], low:[56,92,150],  star:0.25 },
+  { at:1600, top:[7,12,38],   mid:[12,22,60],  low:[22,38,86],   star:0.7 },
+  { at:3200, top:[3,4,14],    mid:[5,7,22],    low:[9,12,34],    star:1.0 }
+];
+const sky = { top:[0,0,0], mid:[0,0,0], low:[0,0,0], star:0 };
+function mix3(a,b,t){ return [ (a[0]+(b[0]-a[0])*t)|0, (a[1]+(b[1]-a[1])*t)|0, (a[2]+(b[2]-a[2])*t)|0 ]; }
+function css(c,a){ return a===undefined ? 'rgb('+c[0]+','+c[1]+','+c[2]+')' : 'rgba('+c[0]+','+c[1]+','+c[2]+','+a+')'; }
+function updateSky(m) {
+  let i = 0;
+  while (i < SKY.length-2 && m > SKY[i+1].at) i++;
+  const a = SKY[i], b = SKY[i+1];
+  const t = clamp((m - a.at) / (b.at - a.at), 0, 1);
+  sky.top = mix3(a.top,b.top,t); sky.mid = mix3(a.mid,b.mid,t);
+  sky.low = mix3(a.low,b.low,t); sky.star = lerp(a.star,b.star,t);
+}
+
+const stars = [];
+for (let i = 0; i < 90; i++) {
+  stars.push({ x: Math.random(), y: Math.random(), r: rand(0.6,2.1), tw: Math.random()*TAU, d: rand(0.12,0.5) });
+}
+
+/* =========================================================
+   RENDER
+   ========================================================= */
+
+function drawSky(t) {
+  ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
+  ctx.fillStyle = '#05060D';
+  ctx.fillRect(0,0,view.w,view.h);
+  const g = ctx.createLinearGradient(0, view.py, 0, view.py + view.ph);
+  g.addColorStop(0, css(sky.top)); g.addColorStop(0.55, css(sky.mid)); g.addColorStop(1, css(sky.low));
+  ctx.fillStyle = g;
+  ctx.fillRect(view.px, view.py, view.pw, view.ph);
+
+  if (sky.star > 0.02) {
+    for (const s of stars) {
+      const yy = ((s.y + (-cam.y * s.d) / 4200) % 1 + 1) % 1;
+      const tw = 0.6 + 0.4*Math.sin(t*1.7 + s.tw);
+      ctx.globalAlpha = sky.star * tw * 0.9;
+      ctx.fillStyle = '#FFFFFF';
+      ctx.beginPath();
+      ctx.arc(view.px + s.x*view.pw, view.py + yy*view.ph, s.r, 0, TAU);
+      ctx.fill();
+    }
+    ctx.globalAlpha = 1;
+  }
+}
+
+function toWorld() {
+  ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
+  ctx.beginPath();
+  ctx.rect(view.px, view.py, view.pw, view.ph);
+  ctx.clip();
+  const sx = run.shake>0 ? rand(-1,1)*run.shake*12 : 0;
+  const sy = run.shake>0 ? rand(-1,1)*run.shake*12 : 0;
+  ctx.translate(view.px + view.pw/2 + sx, view.py + view.ph/2 + sy);
+  ctx.scale(view.scale, view.scale);
+  ctx.translate(0, -cam.y);
+}
+
+function drawWalls(t) {
+  const top = cam.y - view.visH/2 - 60, bot = cam.y + view.visH/2 + 60;
+  for (const side of [-1,1]) {
+    const x = side * HALF_W;
+    const g = ctx.createLinearGradient(x - side*46, 0, x, 0);
+    g.addColorStop(0,'rgba(88,215,255,0)'); g.addColorStop(1,'rgba(88,215,255,0.14)');
+    ctx.fillStyle = g;
+    ctx.fillRect(Math.min(x, x - side*46), top, 46, bot-top);
+    // The wall itself: opaque from the boundary line out to the glass (the
+    // canvas clips at the play rect), a lit inner edge, tick marks on the face.
+    const face = ctx.createLinearGradient(x, 0, x + side*40, 0);
+    face.addColorStop(0, '#0E1D33'); face.addColorStop(1, '#05070F');
+    ctx.fillStyle = face;
+    ctx.fillRect(side < 0 ? x - 160 : x, top, 160, bot - top);
+    ctx.strokeStyle = 'rgba(88,215,255,0.9)'; ctx.lineWidth = 3;
+    ctx.beginPath(); ctx.moveTo(x, top); ctx.lineTo(x, bot); ctx.stroke();
+    ctx.strokeStyle = 'rgba(88,215,255,0.28)'; ctx.lineWidth = 2;
+    const per = 76, off = ((-cam.y*0.5) % per + per) % per;
+    ctx.beginPath();
+    for (let y = Math.floor(top/per)*per - off; y < bot; y += per) {
+      ctx.moveTo(x + side*6, y); ctx.lineTo(x + side*24, y + 20);
+    }
+    ctx.stroke();
+  }
+}
+
+function drawBar(b) {
+  const yy = b.y;
+  ctx.fillStyle = 'rgba(255,77,109,0.16)';
+  ctx.fillRect(-HALF_W, yy-13, WORLD_W, 26);
+  ctx.strokeStyle = 'rgba(255,77,109,0.9)'; ctx.lineWidth = 3;
+  for (const seg of [[-HALF_W, b.gx-b.gw/2],[b.gx+b.gw/2, HALF_W]]) {
+    ctx.beginPath(); ctx.moveTo(seg[0], yy); ctx.lineTo(seg[1], yy); ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,77,109,0.4)'; ctx.lineWidth = 2;
+    ctx.beginPath();
+    for (let x = seg[0]+12; x < seg[1]-6; x += 26) { ctx.moveTo(x, yy-11); ctx.lineTo(x+11, yy+11); }
+    ctx.stroke();
+    ctx.strokeStyle = 'rgba(255,77,109,0.9)'; ctx.lineWidth = 3;
+  }
+  // Gap posts
+  ctx.strokeStyle = '#7CFFB2'; ctx.lineWidth = 4; ctx.lineCap = 'round';
+  for (const gx of [b.gx-b.gw/2, b.gx+b.gw/2]) {
+    ctx.beginPath(); ctx.moveTo(gx, yy-17); ctx.lineTo(gx, yy+17); ctx.stroke();
+  }
+  ctx.globalCompositeOperation = 'lighter';
+  const lg = ctx.createLinearGradient(0, yy-30, 0, yy+30);
+  lg.addColorStop(0,'rgba(124,255,178,0)'); lg.addColorStop(0.5,'rgba(124,255,178,0.22)'); lg.addColorStop(1,'rgba(124,255,178,0)');
+  ctx.fillStyle = lg;
+  ctx.fillRect(b.gx-b.gw/2, yy-30, b.gw, 60);
+  ctx.globalCompositeOperation = 'source-over';
+}
+
+function drawPole(p, t) {
+  const pulse = 0.5 + 0.5*Math.sin(t*2.2 + p.spin);
+  ctx.strokeStyle = 'rgba(255,255,255,' + (0.06 + p.glow*0.28 + pulse*0.03) + ')';
+  ctx.lineWidth = 1.5; ctx.setLineDash([8,12]);
+  ctx.lineDashOffset = -t * (p.glow>0.01 ? 40 : 14);
+  ctx.beginPath(); ctx.arc(p.x, p.y, p.cap, 0, TAU); ctx.stroke();
+  ctx.setLineDash([]);
+
+  if (p.glow > 0.01) {
+    ctx.globalCompositeOperation = 'lighter';
+    const hg = ctx.createRadialGradient(p.x,p.y,p.r*0.6,p.x,p.y,p.cap);
+    hg.addColorStop(0, css(hexRGB(p.core), 0.22*p.glow)); hg.addColorStop(1, css(hexRGB(p.core), 0));
+    ctx.fillStyle = hg; ctx.beginPath(); ctx.arc(p.x,p.y,p.cap,0,TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+
+  const bg = ctx.createRadialGradient(p.x-p.r*0.3, p.y-p.r*0.3, p.r*0.1, p.x, p.y, p.r);
+  bg.addColorStop(0, p.core); bg.addColorStop(1, p.edge);
+  ctx.fillStyle = bg; ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,TAU); ctx.fill();
+  ctx.strokeStyle = 'rgba(255,255,255,0.4)'; ctx.lineWidth = 1.6;
+  ctx.beginPath(); ctx.arc(p.x,p.y,p.r-0.7,0,TAU); ctx.stroke();
+
+  if (p.key === 'boost') {
+    ctx.globalCompositeOperation = 'lighter';
+    const b = 0.4+0.6*Math.abs(Math.sin(t*3.2+p.spin));
+    ctx.fillStyle = 'rgba(124,255,178,'+(0.3*b)+')';
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(1.2+0.3*b),0,TAU); ctx.fill();
+    ctx.globalCompositeOperation = 'source-over';
+  }
+}
+function hexRGB(h){ return [parseInt(h.slice(1,3),16),parseInt(h.slice(3,5),16),parseInt(h.slice(5,7),16)]; }
+
+function drawOrb(o, t) {
+  if (o.got) return;
+  const r = 7 + Math.sin(t*3+o.bob)*1.3;
+  ctx.globalCompositeOperation='lighter';
+  ctx.fillStyle='rgba(255,217,138,0.22)';
+  ctx.beginPath(); ctx.arc(o.x,o.y,r*2.3,0,TAU); ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+  ctx.fillStyle='#FFD98A'; ctx.beginPath(); ctx.arc(o.x,o.y,r,0,TAU); ctx.fill();
+}
+
+// A cone of compressed air behind the player while the boom is running.
+function drawBoom(t) {
+  if (run.boom <= 0) return;
+  const k = clamp(run.boom / BOOM_TIME, 0, 1);
+  const len = view.visH * (0.30 + 0.35*k);
+  ctx.save();
+  ctx.globalCompositeOperation = 'lighter';
+  const g = ctx.createLinearGradient(0, P.y, 0, P.y + len);
+  g.addColorStop(0, 'rgba(220,245,255,0.60)');
+  g.addColorStop(0.35, 'rgba(88,215,255,0.30)');
+  g.addColorStop(1, 'rgba(88,215,255,0)');
+  ctx.fillStyle = g;
+  ctx.beginPath();
+  ctx.moveTo(P.x - 9, P.y);
+  ctx.lineTo(P.x + 9, P.y);
+  ctx.lineTo(P.x + 46 + 10*Math.sin(t*30), P.y + len);
+  ctx.lineTo(P.x - 46 - 10*Math.sin(t*30), P.y + len);
+  ctx.closePath(); ctx.fill();
+  // Mach rings peeling off the nose.
+  for (let i = 0; i < 3; i++) {
+    const a = ((t*2.6 + i/3) % 1);
+    ctx.strokeStyle = 'rgba(220,245,255,' + (0.42*(1-a)) + ')';
+    ctx.lineWidth = 3;
+    ctx.beginPath();
+    ctx.ellipse(P.x, P.y + 26 + a*150, 16 + a*70, 7 + a*26, 0, 0, TAU);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function drawTether(t) {
+  if (!P.anchor) return;
+  const p = P.anchor;
+  ctx.strokeStyle = 'rgba(124,255,178,0.55)';
+  ctx.lineWidth = 2; ctx.setLineDash([6,7]); ctx.lineDashOffset = -t*34;
+  ctx.beginPath(); ctx.moveTo(P.x,P.y); ctx.lineTo(p.x,p.y); ctx.stroke();
+  ctx.setLineDash([]);
+}
+
+function drawPlayer(t) {
+  if (run.state === STATE.DEAD) return;
+  const blink = run.invuln > 0 && Math.floor(t*18)%2===0;
+  if (blink) return;
+  ctx.save();
+  ctx.translate(P.x, P.y);
+  ctx.rotate(P.dir + Math.PI/2);
+
+  // Jet flame, length tracks remaining thrust
+  const f = P.anchor ? clamp(speed()/(V_MAX*view.speedScale), 0, 1) : 0;
+  if (f > 0.02) {
+    ctx.globalCompositeOperation='lighter';
+    const fl = 16 + f*30 + Math.sin(t*40)*3;
+    const fg = ctx.createLinearGradient(0, BODY_R*0.6, 0, BODY_R*0.6+fl);
+    fg.addColorStop(0,'rgba(255,235,160,0.95)');
+    fg.addColorStop(0.4,'rgba(124,255,178,0.6)');
+    fg.addColorStop(1,'rgba(88,215,255,0)');
+    ctx.fillStyle = fg;
+    ctx.beginPath();
+    ctx.moveTo(-6, BODY_R*0.5); ctx.lineTo(6, BODY_R*0.5);
+    ctx.lineTo(0, BODY_R*0.5+fl); ctx.closePath(); ctx.fill();
+    ctx.globalCompositeOperation='source-over';
+  }
+
+  ctx.globalCompositeOperation='lighter';
+  const g = ctx.createRadialGradient(0,0,0,0,0,BODY_R*3.4);
+  g.addColorStop(0, falling() ? 'rgba(255,120,140,0.5)' : 'rgba(160,255,210,0.45)');
+  g.addColorStop(1,'rgba(160,255,210,0)');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(0,0,BODY_R*3.4,0,TAU); ctx.fill();
+  ctx.globalCompositeOperation='source-over';
+
+  ctx.beginPath();
+  ctx.moveTo(0, -BODY_R*1.5);
+  ctx.lineTo(BODY_R*0.85, BODY_R*0.7);
+  ctx.lineTo(0, BODY_R*0.3);
+  ctx.lineTo(-BODY_R*0.85, BODY_R*0.7);
+  ctx.closePath();
+  ctx.fillStyle = '#F6F1E8'; ctx.fill();
+  ctx.strokeStyle = falling() ? '#FF4D6D' : '#7CFFB2'; ctx.lineWidth = 2; ctx.stroke();
+  ctx.restore();
+}
+
+function drawFx() {
+  ctx.globalCompositeOperation='lighter';
+  for (const w of waves) {
+    if (w.age < 0) continue;
+    const t = w.age/w.life, e = 1-Math.pow(1-t,3);
+    ctx.strokeStyle = w.color; ctx.globalAlpha = Math.pow(1-t,1.7)*0.85;
+    ctx.lineWidth = Math.max(0.6, w.width*(1-t*0.8));
+    ctx.beginPath(); ctx.arc(w.x,w.y, w.r0+(w.maxR-w.r0)*e, 0, TAU); ctx.stroke();
+  }
+  for (const p of parts) {
+    const a = 1-p.age/p.life;
+    ctx.globalAlpha = a; ctx.fillStyle = p.c;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*(0.4+a*0.6),0,TAU); ctx.fill();
+  }
+  ctx.globalAlpha=1; ctx.globalCompositeOperation='source-over';
+}
+
+function drawEdges() {
+  ctx.setTransform(view.dpr,0,0,view.dpr,0,0);
+  // Danger vignette when you're low in the frame.
+  const bottomY = cam.y + view.visH*0.5;
+  const room = clamp((bottomY - P.y) / (view.visH*0.35), 0, 1);
+  const danger = 1 - room;
+  if (danger > 0.02) {
+    const g = ctx.createLinearGradient(0, view.py+view.ph, 0, view.py+view.ph*0.62);
+    g.addColorStop(0,'rgba(255,77,109,'+(0.55*danger)+')');
+    g.addColorStop(1,'rgba(255,77,109,0)');
+    ctx.fillStyle = g; ctx.fillRect(view.px, view.py+view.ph*0.62, view.pw, view.ph*0.38);
+  }
+  if (run.flash > 0) {
+    ctx.fillStyle = 'rgba(255,255,255,'+(run.flash*0.3)+')';
+    ctx.fillRect(view.px, view.py, view.pw, view.ph);
+  }
+  // Letterbox surround
+  if (view.px > 0) {
+    ctx.fillStyle = '#05060D';
+    ctx.fillRect(0,0,view.px,view.h);
+    ctx.fillRect(view.px+view.pw,0,view.w-view.px-view.pw,view.h);
+    ctx.strokeStyle = 'rgba(255,255,255,.07)'; ctx.lineWidth = 1;
+    ctx.beginPath();
+    ctx.moveTo(view.px+.5,0); ctx.lineTo(view.px+.5,view.h);
+    ctx.moveTo(view.px+view.pw-.5,0); ctx.lineTo(view.px+view.pw-.5,view.h);
+    ctx.stroke();
+  }
+}
+
+function render(t) {
+  drawSky(t);
+  ctx.save();
+  toWorld();
+  drawWalls(t);
+  for (const b of world.bars) drawBar(b);
+  for (const p of world.poles) drawPole(p, t);
+  for (const o of world.orbs) drawOrb(o, t);
+  drawBoom(t);
+  Tutor.draw(t);
+  drawTether(t);
+  drawFx();
+  drawPlayer(t);
+  ctx.restore();
+  drawEdges();
+}
+
+/* =========================================================
+   HUD
+   ========================================================= */
+
+const hudAlt = el('altV'), hudNum = el('spdNum'), hudFill = el('spdFill'), hudBar = el('bar');
+const boostBtn = el('boost');
+boostBtn.addEventListener('pointerdown', e => { e.preventDefault(); e.stopPropagation(); fireBoom(); });
+let shownAlt = 0, shownOrbs = 0;
+
+function syncHUD(dt) {
+  const m = metres();
+  shownAlt = lerp(shownAlt, m, 1-Math.exp(-10*dt));
+  hudAlt.textContent = Math.round(shownAlt).toLocaleString();
+
+  // The bar is your CLIMB rate, which is the thing gravity actually drains.
+  // Raw speed would rise as you fall, which reads exactly backwards.
+  const max = V_MAX * view.speedScale;
+  const f = clamp(climb() / max, 0, 1);
+  hudFill.style.width = (f*100).toFixed(1) + '%';
+  hudNum.textContent = Math.round(speed());
+  hudFill.style.backgroundColor = f > 0.42 ? 'var(--thrust)' : f > 0.16 ? 'var(--warn)' : 'var(--danger)';
+  hudBar.classList.toggle('empty', falling());
+
+  const full = run.orbs >= ORB_CHARGE;
+  boostBtn.style.setProperty('--p', run.power.toFixed(3));
+  if (Math.floor(run.orbs) > Math.floor(shownOrbs) && !full) boostBtn.animate([{ transform:'scale(1.05)' }, { transform:'scale(.85)' }], { duration:220, easing:'ease-out' });
+  shownOrbs = run.orbs;
+  boostBtn.classList.toggle('on', full && run.boom <= 0 && run.state === STATE.PLAY && !run.awaitFirst);
+
+  if (run.chain >= 3 && run.state === STATE.PLAY) {
+    el('chain').textContent = 'CHAIN ' + run.chain + '  ×' + multiplier().toFixed(1);
+    el('chain').classList.add('on');
+  } else if (!bannerShown()) el('chain').classList.remove('on');
+}
+
+/* =========================================================
+   KERNEL HOOKS — everything the shared loop asks of this game
+   ========================================================= */
+
+Object.assign(G, {
+  layout() {
+    // Fill the height, cap the width — full-bleed on a phone, a centred
+    // column on desktop. Never blocks landscape; it just letterboxes.
+    view.ph = view.h;
+    view.pw = Math.min(view.w, view.h * PLAY_RATIO);
+    view.px = (view.w - view.pw) / 2;
+    view.py = 0;
+    view.scale = view.pw / (WORLD_W + 36);   // 18 world units of wall each side (was 36)
+    view.visH = view.ph / view.scale;
+    // Keep time-to-cross-the-screen consistent across shapes. Derived from the
+    // ORIGINAL 72-unit frame, not the visible one: the wall width is a look,
+    // and speed must not change when it does (see CLAUDE.md, invariant 2).
+    view.speedScale = clamp((view.ph / (view.pw / (WORLD_W + 72))) / 1340, 0.72, 1.15);
+
+    for (const l of [el('hud'), el('intro'), el('over'), el('paused')]) {
+      l.style.left = view.px + 'px'; l.style.top = view.py + 'px';
+      l.style.width = view.pw + 'px'; l.style.height = view.ph + 'px';
+    }
+    el('corner').style.right = (view.px + 14) + 'px';
+  },
+
+  reset(teach) {
+    resetWorld();
+    P.x = 0; P.y = 0; P.dir = -Math.PI/2;
+    P.vx = 0; P.vy = -V_LAUNCH * view.speedScale;
+    P.anchor = null; P.lockout = null; P.arc = 0; P.omega = 0;
+    run.alt = 0; run.top = 0; run.slings = 0; run.chain = 0;
+    el('chain').classList.remove('on');   // a chain shown at death must not stick into the next run
+    run.freeT = 0; run.invuln = 0.5;
+    run.nextMile = 250; run.warned = false;
+    run.orbs = 0; run.power = 0; run.boom = 0; run.everFull = false; run.coachBoost = false;
+    cam.y = 0;
+    generateAhead(-view.visH * 2.2, 0);
+    el('introBest').textContent = run.best ? 'Best ' + run.best.toLocaleString() + ' m' : '';
+    Tutor.start(teach);
+  },
+
+  decay(dt) { for (const p of world.poles) p.glow = Math.max(0, p.glow - dt*3.2); },
+  idle(dt, clock) { P.y = Math.sin(clock*1.9)*6; updateSky(0); },
+  slow(dt) { Tutor.update(dt); return run.coachBoost ? TUTOR_SLOW : Tutor.scale; },   // coaching slows the world, not the UI
+  dead(dt) { cam.y -= 8*dt; },
+  syncHUD: syncHUD,
+  render: render,
+
+  step(dt) {
+    stepPlayer(dt);
+
+    // Camera rises with you and never falls back, plus a slow creep so
+    // hovering on one pole isn't a strategy.
+    const target = P.y - view.visH * (run.boom > 0 ? 0.26 : 0.12);
+    if (target < cam.y) cam.y = lerp(cam.y, target, 1-Math.exp(-(run.boom > 0 ? 16 : 5)*dt));
+    cam.y -= view.visH * (0.010 + Math.min(0.028, metres()*0.00004)) * (P.anchor ? 0.35 : 1) * dt;
+
+    // Altitude gained is the score, and only once you've actually slung.
+    if (P.y < run.top) {
+      const gained = (run.top - P.y) / 10;
+      if (run.engaged) run.score += gained * multiplier();
+      if (run.boom <= 0) charge(gained * CLIMB_CHARGE);   // the boom must not refuel itself
+      run.top = P.y;
+    }
+    run.alt = metres();
+    updateSky(run.alt);
+
+    if (run.alt >= run.nextMile) {
+      run.nextMile += 250;
+      if (run.engaged) run.score += Math.round(120*multiplier());
+      banner(Math.round(run.alt) + ' M', '#7CFFB2');
+      shockwave(P.x, P.y, { maxR:view.visH*0.45, life:0.85, color:'#7CFFB2', width:6 });
+      run.flash = Math.max(run.flash, 0.18);
+      Sound.milestone();
+    }
+
+    generateAhead(cam.y - view.visH*1.6, run.alt);
+    cullBelow(cam.y + view.visH*0.9);
+    checkCollisions();
+
+    Music.set(run.alt, falling(), run.chain);
+
+    if (Sound.jet) {
+      const f = clamp(speed()/(V_MAX*view.speedScale), 0, 1);
+      Sound.setJet(P.anchor ? f * 0.9 : 0, f);
+    }
+  },
+
+  wake() { Sound.startJet(); Music.start(); },
+  hush() { Sound.stopJet(); Music.stop(); },
+
+  launch() {
+    burst(P.x, P.y, 26, { color:'#7CFFB2', angle:Math.PI/2, spread:0.7, maxSpeed:340, maxLife:0.7 });
+    shockwave(P.x, P.y, { maxR:230, life:0.7, color:'#7CFFB2', width:6 });
+    Sound.sling(1);
+  },
+
+  key(e) { if (e.code === 'KeyB') fireBoom(); },
+
+
+  dying() { Tutor.suspend(); return false; },
+  crash() {
+    P.anchor = null;
+    shockwave(P.x, P.y, { maxR: view.visH*0.5, life:0.9, color:'#FF4D6D', width:8 });
+    shockwave(P.x, P.y, { maxR: view.visH*0.3, life:0.7, color:'#FFC24D', width:5, delay:0.1 });
+    burst(P.x, P.y, 42, { color:'#FF4D6D', maxSpeed:400, maxLife:1.1, maxR:4.4 });
+  },
+  celebrate(i) {
+    const a = rand(0, TAU), r = i ? rand(60, 200) : 0;
+    const x = P.x + Math.cos(a) * r, y = P.y + Math.sin(a) * r;
+    burst(x, y, 26, { color: i % 2 ? '#FFFFFF' : '#FFD98A', minSpeed: 120, maxSpeed: 360,
+                      minLife: 0.6, maxLife: 1.3, maxR: 3.8, drag: 1.2 });
+    shockwave(x, y, { maxR: 140 + i * 30, life: 0.6, color: '#FFD98A', width: 3 });
+  },
+  record() {
+    const m = Math.floor(metres());
+    const isBest = m > run.best;
+    if (isBest) { run.best = m; store('slinger.best', String(run.best)); }
+    return isBest;
+  },
+  overPanel() {
+    el('finalAlt').innerHTML = Math.floor(metres()).toLocaleString() + '<span class="score-unit">m</span>';
+    el('finalSlings').textContent = run.slings;
+    el('finalChain').textContent = run.bestChain;
+  },
+
+  revive() {
+    run.invuln = 1.5;
+    P.anchor = null; P.lockout = null; P.omega = 0;
+    P.vx = 0; P.vy = -V_LAUNCH * view.speedScale; P.dir = -Math.PI/2;
+    P.y = cam.y; P.x = clamp(P.x, -HALF_W+80, HALF_W-80);
+    for (let i = world.bars.length-1; i>=0; i--) if (Math.abs(world.bars[i].y - P.y) < 420) world.bars.splice(i,1);
+    for (let i = world.poles.length-1; i>=0; i--) {
+      const q = world.poles[i], dx = q.x-P.x, dy = q.y-P.y;
+      if (dx*dx+dy*dy < 200*200) world.poles.splice(i,1);
+    }
+    burst(P.x, P.y, 28, { color:'#7CFFB2', maxSpeed:300, maxLife:0.8 });
+  }
+});
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+
+window.__slinger = { Music:Music, P:P, run:run, world:world, cam:cam, view:view, input:input, STATE:STATE,
+                     begin: function(){ beginRun(); },
+                     restart: function(t){ startRun(t); }, Tutor: Tutor, sky: sky,
+                     charge: function(n){ charge(n); }, boom: function(){ fireBoom(); },
+                     Portal: Portal };
+
+boot();
+})();
+</script>
+</body>
+</html>

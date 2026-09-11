@@ -1,0 +1,1769 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cargo Loop</title>
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+
+<!--
+  CARGO LOOP — graybox prototype for the Week 1-2 switch test.
+  Verb:   tap a yard column to release, tap a switch to route, tap a docked crate to re-send
+  Fail:   a crate needs a dock pad and every pad is full (JAM)
+  Win:    the last truck is dispatched
+
+  Deliberately ugly. This build exists to answer one question: is deciding
+  WHERE cargo goes more fun and more legible than only deciding WHICH cargo to
+  release? Art, meta, economy and ads are out of scope until that is answered.
+
+  Variant comes from ?v=A|B|C and then sticks. All three run on one simulation
+  (sim.mjs); they differ only in level data and which switches exist.
+-->
+<script>window.__BUILD__ = {"portal":"dev","escPause":true,"devReward":true,"continueUI":"ad"};</script>
+</head>
+<body>
+<style>
+  :root {
+    --ground:   #11161C;
+    --deck:     #1B242E;
+    --deck-2:   #243141;
+    --ink:      #E8EEF3;
+    --ink-dim:  #8899A8;
+    --belt:     #36485A;
+    --amber:    #F2B53A;
+    --bad:      #E4645A;
+    --good:     #59C08A;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0; height: 100%; overflow: hidden; background: var(--ground);
+    color: var(--ink); font: 500 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  #stage { position: fixed; inset: 0; }
+  canvas { position: absolute; inset: 0; display: block; }
+  .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-variant-numeric: tabular-nums; }
+
+  /* Overlays never swallow a tap. The panels opt back in, so "tap anywhere to
+     retry" still works, but the intro stays transparent: the first tap has to
+     reach the canvas or the game simply never starts. That was the bug. */
+  .layer {
+    position: absolute; inset: 0; display: none; pointer-events: none;
+    align-items: center; justify-content: center; flex-direction: column;
+    background: rgba(8, 11, 15, .82); text-align: center; padding: 24px;
+  }
+  .panel { pointer-events: auto; }
+  #intro .panel { pointer-events: none; }
+  .layer.on { display: flex; }
+  #hud.layer { background: none; pointer-events: none; display: none;
+               align-items: flex-start; justify-content: flex-start; }
+  #hud.on { display: block; }
+
+  /* HUD: the level name, and the pad counter that is the whole tension. */
+  #top {
+    position: absolute; left: 16px; right: 16px; top: max(12px, env(safe-area-inset-top));
+    display: flex; justify-content: space-between; align-items: baseline;
+    font-size: 13px; letter-spacing: .12em; text-transform: uppercase; color: var(--ink-dim);
+  }
+  #pads { color: var(--ink); }
+  #pads.tight { color: var(--amber); }
+  #pads.last { color: var(--bad); }
+  #vtag { position: absolute; left: 16px; bottom: max(10px, env(safe-area-inset-bottom));
+          font-size: 11px; letter-spacing: .18em; color: rgba(136,153,168,.5); }
+
+  .panel { max-width: 340px; }
+
+  h1 { font-size: clamp(30px, 9vw, 46px); margin: 0 0 6px; letter-spacing: -.01em; }
+  .tagline { color: var(--ink-dim); font-size: 14px; letter-spacing: .06em; display: block; margin-bottom: 22px; }
+  .over-label { display: block; font-size: 13px; letter-spacing: .2em;
+                text-transform: uppercase; color: var(--ink-dim); margin-bottom: 8px; }
+  .score-big { font-size: 40px; font-weight: 700; line-height: 1; }
+  .score-sub { display: flex; gap: 18px; justify-content: center; margin-top: 14px;
+               font-size: 12px; color: var(--ink-dim); }
+  .score-sub .v { display: block; color: var(--ink); font-size: 17px; }
+  .best-flag { display: none; }
+  .tapline { display: block; width: 100%; margin-top: 24px; background: none; border: 0;
+             color: var(--ink); font: inherit; letter-spacing: .1em; text-transform: uppercase;
+             font-size: 13px; cursor: pointer; opacity: .9; }
+  .btn { display: block; width: 100%; margin-top: 12px; padding: 12px 16px; cursor: pointer;
+         background: var(--amber); color: #17110280; border: 0; border-radius: 3px;
+         font: inherit; font-weight: 700; letter-spacing: .06em; color: #1A1302; }
+  .btn.ghost { background: none; border: 1px solid rgba(136,153,168,.4); color: var(--ink-dim); }
+
+  #corner { position: absolute; right: 14px; bottom: max(16px, env(safe-area-inset-bottom));
+            display: flex; gap: 8px; z-index: 5; }
+  #corner.hide-pause #btnPause { display: none; }
+  /* Capture mode: canvas only, no chrome. tools/cargo-clips.mjs turns this on
+     to record ad footage from real play rather than a mock-up. */
+  body.capture #hud, body.capture #corner, body.capture #over,
+  body.capture #intro, body.capture #paused { display: none !important; }
+
+  .icon { width: 34px; height: 34px; display: grid; place-items: center; cursor: pointer;
+          border: 1px solid rgba(136,153,168,.26); border-radius: 2px;
+          background: rgba(8,11,15,.5); color: var(--ink-dim); font-size: 14px; }
+</style>
+
+<div id="stage">
+  <canvas id="c"></canvas>
+
+  <div class="layer" id="hud">
+    <div id="top"><span id="levelName">—</span><span class="mono" id="pads">5 pads</span></div>
+    <div id="vtag" class="mono">—</div>
+  </div>
+
+  <div class="layer on" id="intro">
+    <div class="panel">
+      <h1>Cargo Loop</h1>
+      <span class="tagline">Tap a column to release. Fill every truck.<br>A full dock is a jam.</span>
+      <button class="tapline" id="startBtn">Tap anywhere to start</button>
+    </div>
+  </div>
+
+  <div class="layer" id="over">
+    <div class="panel">
+      <span class="over-label" id="overLabel">Jam</span>
+      <div class="score-big mono" id="finalTrucks">0</div>
+      <div class="score-sub mono">
+        <div><span class="k">Taps</span><span class="v" id="finalTaps">0</span></div>
+        <div><span class="k">Pads left</span><span class="v" id="finalPads">0</span></div>
+        <div><span class="k">Level</span><span class="v" id="finalLevel">1</span></div>
+      </div>
+      <!-- The kernel writes the game's best score here after overPanel() runs,
+           so this cannot be reused for anything else. A prototype has no best. -->
+      <span id="finalBest" hidden></span>
+      <span class="best-flag" id="bestFlag">New record</span>
+      <button class="tapline" id="again">Tap anywhere to retry</button>
+      <!-- Playable-ad call to action. Hidden in every other build. -->
+      <button class="btn" id="cta" style="display:none">Play free</button>
+      <button class="btn ghost" id="revive">Free &plus;1 pad &mdash; keep going</button>
+    </div>
+  </div>
+
+  <div class="layer" id="paused">
+    <div class="panel">
+      <span class="tagline" style="margin:0">Paused</span>
+      <button class="tapline" id="resume">Resume</button>
+      <button class="btn ghost" id="quit">Give up</button>
+    </div>
+  </div>
+
+  <div id="corner">
+    <div class="icon" id="btnSound" role="button" tabindex="0" aria-label="Sound">&#9835;</div>
+    <div class="icon" id="btnPause" role="button" tabindex="0" aria-label="Pause">&#10073;&#10073;</div>
+  </div>
+</div>
+
+<script>
+(function () {
+'use strict';
+
+// Helpers every game and every kernel module share. Nothing here knows about
+// a game, the DOM beyond getElementById, or the portal.
+
+const TAU = Math.PI * 2;
+
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp  = (a, b, t) => a + (b - a) * t;
+const rand  = (a, b) => a + Math.random() * (b - a);
+const randi = (a, b) => Math.floor(rand(a, b + 1));
+const pick  = a => a[(Math.random() * a.length) | 0];
+
+const el = id => document.getElementById(id);
+
+// Haptics. The iOS wrapper registers a WKScriptMessageHandler named "haptic"
+// (ios/Sources/App.swift); everywhere else this is the Vibration API, which
+// Android WebView and Chrome have (VIBRATE is in the manifest) and iOS Safari
+// does not. A silent no-op where neither exists.
+function haptic(pattern) {
+  try {
+    const ios = window.webkit && window.webkit.messageHandlers && window.webkit.messageHandlers.haptic;
+    if (ios) ios.postMessage(pattern);
+    else if (navigator.vibrate) navigator.vibrate(pattern);
+  } catch (e) {}
+}
+
+// localStorage that never throws (private mode, blocked storage).
+function store(k, v) {
+  try {
+    if (v === undefined) return localStorage.getItem(k);
+    localStorage.setItem(k, v);
+  } catch (e) {}
+  return null;
+}
+
+// Per-portal build configuration, injected by build.mjs. Defaults = dev build.
+const BUILD = Object.assign(
+  { portal: 'dev', escPause: true, devReward: true, continueUI: 'ad' },
+  (typeof window !== 'undefined' && window.__BUILD__) || {}
+);
+
+// The state every kernel module reads, and the hooks a game fills in.
+
+const STATE = { PLAY: 1, DEAD: 2, PAUSE: 3 };
+
+// Fields the kernel owns. A game adds its own with Object.assign(run, {...}),
+// including `best`, since the storage key is the game's.
+const run = {
+  state: STATE.PLAY, score: 0, bestChain: 0,
+  shake: 0, hitstop: 0, flash: 0, invuln: 0, time: 0,
+  awaitFirst: true, engaged: false, canRetry: false, revived: false,
+  cause: '', best: 0
+};
+
+// x/y are where the last press landed, in CSS pixels. A one-input game
+// ignores them; a game with tap targets (Cargo Loop's yard, switches and
+// dock) needs to know what was hit.
+const input = { held: false, locked: false, x: 0, y: 0 };
+
+// What the kernel asks of a game. Fill it with Object.assign(G, {...}) before
+// boot(). Hooks marked * are required; the rest are optional.
+//   layout()*          resize: derive the play rect / world scale from view.w, view.h
+//   reset(teach)*      resetRun: rebuild the world and the game's own run fields
+//   decay(dt)*         frame, every state: fade glows and the like
+//   idle(dt, clock)*   frame, before the first input: the attract-mode animation
+//   step(dt)*          frame, in play, after hitstop: the game itself
+//   dead(dt)*          frame, after death: camera drift
+//   syncHUD(dt)*       frame: push run state into the HUD
+//   render(t)*         frame: draw everything
+//   wake()*            start the continuous audio (begin, resume, revive)
+//   hush()*            stop it (die, pause, ad break)
+//   crash(cause, hit)* die: detach the player and fire the death effects
+//   record()*          die: persist bests; return true if this run set one
+//   overPanel()*       die: fill the game's own game-over fields
+//   revive()*          after a rewarded ad: put the player back in play
+//   slow(dt)           frame, in play, before hitstop; returns a time scale
+//   launch()           beginRun only: first-input effects
+//   tap()              press while already running (a second tap)
+//   key(e)             keydown the kernel didn't handle
+//   blocked()          true while input and stepping must stop (orientation gate)
+//   dying(cause, hit)  die, first thing; return true to cancel the death
+//   celebrate(i)       five times after a new best: burst stars around the player
+//   pilot()            true when a competent player would be holding right now,
+//                      judged from visible state only. Drives tools/triage.mjs.
+//   moment()           the beat that happened this frame ('hook', 'boom', …) or
+//                      null; names the captions in tools/trailer.mjs. dev-only.
+const G = {
+  overDelay: 620,                   // ms from death to the game-over panel
+  resumeInvuln: 0.4,                // seconds of grace after unpausing
+  dim: 'rgba(159,166,192,.4)',      // the sound button when muted
+  banner: { box: 'chain', text: 'chain', color: 'var(--gold)', ms: 1300 }
+};
+
+// Synthesised audio, no asset files. One context and one master gain, which
+// mute and ad-ducking both drive — anything routed through `master` (a game's
+// music, its engine loop) is covered for free. A game calls init() with its
+// storage key, master level, and its own event sounds; it must supply die().
+const Sound = {
+  key: '', gain: 0.4, ctx: null, master: null, on: true, ducked: false, ready: false,
+  init(key, gain, fx) {
+    this.key = key; this.gain = gain; this.on = store(key) !== '0';
+    return Object.assign(this, fx);
+  },
+  boot() {
+    if (this.ready) return;
+    const AC = window.AudioContext || window.webkitAudioContext;
+    if (!AC) return;
+    try {
+      this.ctx = new AC();
+      this.master = this.ctx.createGain();
+      this.master.gain.value = this.on ? this.gain : 0;
+      this.master.connect(this.ctx.destination);
+      this.ready = true;
+    } catch (e) {}
+  },
+  resume() { if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume().catch(()=>{}); },
+  level() { return (this.on && !this.ducked) ? this.gain : 0; },
+  duck(on) { this.ducked = on; if (this.master) this.master.gain.setTargetAtTime(this.level(), this.ctx.currentTime, 0.02); },
+  toggle() {
+    this.on = !this.on; store(this.key, this.on ? '1' : '0');
+    if (this.master) this.master.gain.setTargetAtTime(this.level(), this.ctx.currentTime, 0.02);
+    return this.on;
+  },
+  tone(f, d, type, v, to) {
+    if (!this.ready || !this.on) return;
+    const t = this.ctx.currentTime;
+    const o = this.ctx.createOscillator(), g = this.ctx.createGain();
+    o.type = type || 'sine';
+    o.frequency.setValueAtTime(f, t);
+    if (to) o.frequency.exponentialRampToValueAtTime(Math.max(20, to), t + d);
+    g.gain.setValueAtTime(0, t);
+    g.gain.linearRampToValueAtTime(v, t + 0.008);
+    g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    o.connect(g); g.connect(this.master); o.start(t); o.stop(t + d + 0.02);
+  },
+  noise(d, v, cut) {
+    if (!this.ready || !this.on) return;
+    const t = this.ctx.currentTime;
+    const n = Math.floor(this.ctx.sampleRate * d);
+    const buf = this.ctx.createBuffer(1, n, this.ctx.sampleRate);
+    const arr = buf.getChannelData(0);
+    for (let i = 0; i < n; i++) arr[i] = (Math.random()*2-1) * (1 - i/n);
+    const src = this.ctx.createBufferSource(); src.buffer = buf;
+    const f = this.ctx.createBiquadFilter(); f.type='lowpass';
+    f.frequency.setValueAtTime(cut || 1500, t);
+    f.frequency.exponentialRampToValueAtTime(200, t + d);
+    const g = this.ctx.createGain();
+    g.gain.setValueAtTime(v, t); g.gain.exponentialRampToValueAtTime(0.0001, t + d);
+    src.connect(f); f.connect(g); g.connect(this.master); src.start(t);
+  },
+  ui() { this.tone(520, 0.07, 'square', 0.09, 700); },
+
+  /* @dev-only */
+  // Record everything that reaches `master` (music, effects, engine loop) for
+  // tools/trailer.mjs — Playwright's video has no sound. boot() first.
+  tap() {
+    const dest = this.ctx.createMediaStreamDestination();
+    this.master.connect(dest);
+    this.rec = new MediaRecorder(dest.stream, { mimeType: 'audio/webm;codecs=opus' });
+    this.chunks = [];
+    this.rec.ondataavailable = (e) => this.chunks.push(e.data);
+    this.rec.start();
+  },
+  untap() {
+    return new Promise((res) => {
+      this.rec.onstop = () => {
+        const fr = new FileReader();
+        fr.onload = () => res(fr.result.split(',')[1]);
+        fr.readAsDataURL(new Blob(this.chunks, { type: 'audio/webm' }));
+      };
+      this.rec.stop();
+    });
+  }
+  /* @end-dev */
+};
+
+// Particles and expanding rings. Drawing stays in the game (each has its own
+// look); the kernel owns the pools so resetRun can clear them.
+const parts = [], waves = [];
+
+// Defaults a call can leave out. A game overrides with Object.assign(FX, {...}).
+const FX = { color: '#7CFFB2', maxSpeed: 240, maxR: 3.2, drag: 1.7,
+                    r0: 10, waveR: 260, life: 0.7, waveColor: '#58D7FF' };
+
+function burst(x, y, n, o) {
+  o = o || {};
+  for (let i = 0; i < n; i++) {
+    const a = o.angle !== undefined ? o.angle + rand(-o.spread, o.spread) : rand(0, TAU);
+    const s = rand(o.minSpeed || 40, o.maxSpeed || FX.maxSpeed);
+    parts.push({ x:x, y:y, vx:Math.cos(a)*s, vy:Math.sin(a)*s,
+      life: rand(o.minLife || 0.25, o.maxLife || 0.7), age:0,
+      r: rand(o.minR || 1.2, o.maxR || FX.maxR), c: o.color || FX.color, drag: o.drag || FX.drag });
+  }
+}
+function shockwave(x, y, o) {
+  o = o || {};
+  waves.push({ x:x, y:y, r0:o.r0||FX.r0, maxR:o.maxR||FX.waveR, age:-(o.delay||0),
+    life:o.life||FX.life, color:o.color||FX.waveColor, width:o.width||5 });
+}
+function stepFx(dt) {
+  for (let i = parts.length-1; i>=0; i--) {
+    const p = parts[i]; p.age += dt;
+    if (p.age >= p.life) { parts.splice(i,1); continue; }
+    const d = Math.exp(-p.drag*dt); p.vx*=d; p.vy*=d;
+    p.x += p.vx*dt; p.y += p.vy*dt;
+  }
+  for (let i = waves.length-1; i>=0; i--) { waves[i].age += dt; if (waves[i].age >= waves[i].life) waves.splice(i,1); }
+}
+
+// Portal SDK wrapper: Poki, CrazyGames or the Android host, degrading to a
+// no-op so the game plays identically with an ad blocker on. commercial() and
+// rewarded() return promises; nothing else in a game knows where it is.
+
+// Mute audio and swallow input for the duration of an ad break. Input stays
+// locked until the callback, so every path through an ad must settle exactly once.
+function adLock(on) {
+  input.locked = on; input.held = false;
+  if (on) { G.hush(); Sound.duck(true); } else Sound.duck(false);
+}
+
+// Ad placement knobs — WHEN an ad is asked for; the Portal only knows HOW.
+// Defaults ship in the bundle. BUILD.configUrl (a per-target build flag, empty
+// until a host exists) names a flat JSON of the same keys that overrides them
+// at boot, so cadence changes without a store build. The last fetched set is
+// cached, so it also applies offline; a fetch that fails changes nothing.
+const Ads = {
+  ads: true,           // master: false silences both kinds
+  interstitial: true,  // the between-run ad
+  revive: true,        // the rewarded continue
+  everyDeaths: 1,      // interstitial on every Nth retry
+  minGap: 0,           // seconds between interstitials
+  graceRetries: 0,     // no interstitial on the first N retries of a session
+  _since: 0, _retries: 0, _last: -1e9,
+  apply(j) {
+    for (const k of ['everyDeaths', 'minGap', 'graceRetries']) if (typeof j[k] === 'number' && j[k] >= 0) this[k] = j[k];
+    for (const k of ['ads', 'interstitial', 'revive']) if (typeof j[k] === 'boolean') this[k] = j[k];
+  },
+  async load() {
+    try { this.apply(JSON.parse(store('arcade.ads')) || {}); } catch (e) {}
+    if (!BUILD.configUrl) return;
+    try {
+      const j = await (await fetch(BUILD.configUrl, { cache: 'no-store' })).json();
+      this.apply(j); store('arcade.ads', JSON.stringify(j));
+    } catch (e) {}
+  },
+  // Called once per retry. True when this retry should carry an interstitial.
+  wantInterstitial(now = performance.now()) {
+    if (!this.ads || !this.interstitial) return false;
+    if (++this._retries <= this.graceRetries) return false;
+    if (++this._since < this.everyDeaths || now - this._last < this.minGap * 1000) return false;
+    this._since = 0; this._last = now;
+    return true;
+  }
+};
+
+// The Android host can't return a value from a JavascriptInterface call, so
+// each ad request carries a ticket the native side calls back with.
+const adCalls = new Map();
+let adTicket = 0;
+function nativeAd(method) {
+  return new Promise(res => {
+    const id = ++adTicket;
+    adCalls.set(id, res);
+    // Only a genuinely dead host should trip this. A real rewarded video can
+    // legitimately run 30s+, and resolving early would strand the callback.
+    setTimeout(() => { if (adCalls.has(id)) { adCalls.delete(id); res(false); } }, 90000);
+    try { window[Portal.native][method](id); }
+    catch (e) { adCalls.delete(id); res(false); }
+  });
+}
+
+const Portal = {
+  kind: 'none', inPlay: false, native: null,
+  // Wire the native bridge (Android's JavascriptInterface, or the iOS shim of
+  // it): `iface` is the object the wrapper injects, `callback` the window
+  // function its AdHost answers tickets on.
+  android(iface, callback) {
+    this.native = iface;
+    window[callback] = function (id, ok) {
+      const fn = adCalls.get(id);
+      if (!fn) return;
+      adCalls.delete(id);
+      fn(!!ok);
+    };
+  },
+  detect() {
+    if (typeof window.PokiSDK !== 'undefined') this.kind = 'poki';
+    else if (window.CrazyGames && window.CrazyGames.SDK) this.kind = 'crazy';
+    // The store wrappers inject the same JavascriptInterface shape (iOS shims it
+    // over a WKScriptMessageHandler), so both are the 'android' kind here.
+    else if (this.native && window[this.native] && (BUILD.portal === 'android' || BUILD.portal === 'ios')) this.kind = 'android';
+  },
+  async init() {
+    this.detect();
+    try {
+      if (this.kind === 'poki') await window.PokiSDK.init();
+      else if (this.kind === 'crazy') await window.CrazyGames.SDK.init();
+    } catch (e) { this.kind = 'none'; }
+  },
+  loadingFinished() { try { if (this.kind === 'poki') window.PokiSDK.gameLoadingFinished(); } catch (e) {} },
+  gameplayStart() {
+    if (this.inPlay) return; this.inPlay = true;
+    try {
+      if (this.kind === 'poki') window.PokiSDK.gameplayStart();
+      else if (this.kind === 'crazy') window.CrazyGames.SDK.game.gameplayStart();
+    } catch (e) {}
+  },
+  gameplayStop() {
+    if (!this.inPlay) return; this.inPlay = false;
+    try {
+      if (this.kind === 'poki') window.PokiSDK.gameplayStop();
+      else if (this.kind === 'crazy') window.CrazyGames.SDK.game.gameplayStop();
+    } catch (e) {}
+  },
+  // Interstitial between runs. Always resolves — never blocks the game.
+  commercial() {
+    this.gameplayStop(); adLock(true);
+    return new Promise(res => {
+      let done = false;
+      const fin = () => { if (done) return; done = true; adLock(false); res(); };
+      try {
+        if (this.kind === 'poki') { window.PokiSDK.commercialBreak().then(fin, fin); return; }
+        if (this.kind === 'crazy') { window.CrazyGames.SDK.ad.requestAd('midgame', { adFinished: fin, adError: fin }); return; }
+        if (this.kind === 'android') { nativeAd('showInterstitial').then(fin, fin); return; }
+      } catch (e) {}
+      fin();
+    });
+  },
+  // Rewarded ad for the continue. Resolves true only on a real completed view.
+  rewarded() {
+    this.gameplayStop(); adLock(true);
+    return new Promise(res => {
+      let done = false;
+      const fin = ok => { if (done) return; done = true; adLock(false); res(!!ok); };
+      try {
+        if (this.kind === 'poki') { window.PokiSDK.rewardedBreak().then(ok => fin(ok), () => fin(false)); return; }
+        if (this.kind === 'crazy') { window.CrazyGames.SDK.ad.requestAd('rewarded', { adFinished: () => fin(true), adError: () => fin(false) }); return; }
+        if (this.kind === 'android') { nativeAd('showRewarded').then(ok => fin(ok), () => fin(false)); return; }
+      } catch (e) {}
+      // Never reward when the SDK is blocked — portals forbid it.
+      fin(BUILD.devReward === true);
+    });
+  }
+};
+
+// The shell around a game: canvas and view, overlay layers, the run lifecycle
+// (start / begin / die / pause / retry / revive), input, and the frame loop.
+// Everything game-shaped is reached through the hooks in G.
+
+/* =========================================================
+   VIEW
+   ========================================================= */
+
+const canvas = el('c');
+const ctx = canvas.getContext('2d', { alpha: false });
+const view = { w:0, h:0, dpr:1, scale:1 };
+
+function resize() {
+  const de = document.documentElement;
+  const w = Math.max(1, Math.round(window.innerWidth  || de.clientWidth));
+  const h = Math.max(1, Math.round(window.innerHeight || de.clientHeight));
+  const dpr = clamp(window.devicePixelRatio || 1, 1, 2.5);
+  view.w = w; view.h = h; view.dpr = dpr;
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  canvas.width = Math.round(w * dpr); canvas.height = Math.round(h * dpr);
+  G.layout();
+}
+window.addEventListener('resize', resize);
+window.addEventListener('orientationchange', () => setTimeout(resize, 120));
+
+/* =========================================================
+   LAYERS
+   ========================================================= */
+
+const CONTINUE_UI = BUILD.continueUI || 'ad';
+const layers = { hud: el('hud'), intro: el('intro'), over: el('over'), paused: el('paused') };
+
+function show(name) {
+  for (const k in layers) layers[k].classList.toggle('on',
+    k === name || (name === 'play' && k === 'hud') || (name === 'intro' && k === 'hud'));
+  if (name === 'over' || name === 'paused') layers.hud.classList.add('on');
+  el('corner').classList.toggle('hide-pause', name !== 'play' && name !== 'paused');
+  if (name !== 'intro') el('intro').classList.remove('on');
+}
+
+let bannerT = null;
+function banner(text, color) {
+  const B = G.banner, box = el(B.box), t = el(B.text);
+  t.textContent = text; t.style.color = color || B.color;
+  if (B.shadow) t.style.textShadow = '0 0 30px ' + (color || B.shadow) + 'aa';
+  if (B.pop) { box.classList.remove('on'); void box.offsetWidth; }   // restart the animation
+  box.classList.add('on');
+  clearTimeout(bannerT);
+  bannerT = setTimeout(() => box.classList.remove('on'), B.ms);
+}
+const bannerShown = () => !!bannerT;
+
+/* =========================================================
+   RUN LIFECYCLE
+   ========================================================= */
+
+function resetRun() {
+  run.score = 0; run.bestChain = 0;
+  run.shake = 0; run.hitstop = 0; run.flash = 0; run.time = 0;
+  run.awaitFirst = true; run.engaged = false; run.canRetry = false;
+  run.revived = false; run.cause = '';
+  parts.length = 0; waves.length = 0;
+}
+
+// The game is live from the first frame; the run only *begins* on first input.
+// That is what keeps this at zero clicks to gameplay, and it is also exactly
+// when portals want gameplayStart() to fire.
+function startRun(teach) { resetRun(); G.reset(teach); run.state = STATE.PLAY; show('intro'); }
+
+function beginRun() {
+  if (!run.awaitFirst) return;
+  run.awaitFirst = false;
+  show('play');
+  Sound.boot(); Sound.resume(); G.wake();
+  Portal.gameplayStart();
+  if (G.launch) G.launch();
+}
+
+function die(cause, hitObj) {
+  if (run.state !== STATE.PLAY) return;
+  if (G.dying && G.dying(cause, hitObj)) return;
+  run.state = STATE.DEAD; run.cause = cause;
+  run.shake = 1; run.flash = 0.5; haptic([50, 40, 90]);
+  input.held = false;
+  G.crash(cause, hitObj);
+  Sound.die(); G.hush();
+  Portal.gameplayStop();
+
+  run.score = Math.round(run.score);
+  const isBest = G.record();
+
+  setTimeout(() => {
+    run.canRetry = true;
+    el('overLabel').textContent = cause;
+    G.overPanel();
+    el('finalBest').textContent = run.best.toLocaleString();
+    el('bestFlag').classList.toggle('on', isBest);
+    layers.over.classList.toggle('record', isBest);
+    // A new best is celebrated: the panel's CSS spins a light ray behind the
+    // number, and the game bursts stars around the player a few times.
+    if (isBest && G.celebrate) for (let i = 0; i < 5; i++) setTimeout(() => G.celebrate(i), i * 320);
+    el('revive').style.display = (CONTINUE_UI === 'none' || !Ads.ads || !Ads.revive || run.revived) ? 'none' : '';
+    show('over');
+  }, G.overDelay);
+}
+
+function doPause() {
+  if (run.state !== STATE.PLAY) return;
+  run.state = STATE.PAUSE; input.held = false;
+  Portal.gameplayStop(); G.hush(); show('paused');
+}
+function doResume() {
+  if (run.state !== STATE.PAUSE) return;
+  run.state = STATE.PLAY; run.invuln = Math.max(run.invuln, G.resumeInvuln);
+  show('play'); Sound.resume(); G.wake(); Portal.gameplayStart();
+}
+function giveUp() { run.state = STATE.PLAY; run.invuln = 0; show('play'); die('Gave up'); }
+
+async function retry() {
+  if (run.state !== STATE.DEAD || !run.canRetry) return;
+  run.canRetry = false;
+  Sound.ui(); show('none');                 // blank while the interstitial runs
+  if (Ads.wantInterstitial()) await Portal.commercial();
+  startRun();
+}
+
+function toggleSound() { Sound.boot(); const on = Sound.toggle(); el('btnSound').style.color = on ? 'var(--ink)' : G.dim; }
+
+/* =========================================================
+   INPUT
+   ========================================================= */
+
+function press(e) {
+  if (e && e.cancelable) e.preventDefault();
+  if (input.locked || (G.blocked && G.blocked())) return;
+  if (run.state === STATE.DEAD) { retry(); return; }
+  Sound.boot(); Sound.resume();
+  if (e && e.clientX !== undefined) { input.x = e.clientX; input.y = e.clientY; }
+  if (run.awaitFirst) beginRun();
+  else if (G.tap) G.tap();
+  input.held = true;
+}
+function release(e) { if (e && e.cancelable) e.preventDefault(); input.held = false; }
+
+canvas.addEventListener('pointerdown', press);
+window.addEventListener('pointerup', release);
+window.addEventListener('pointercancel', release);
+canvas.addEventListener('contextmenu', e => e.preventDefault());
+window.addEventListener('wheel', e => { if (e.cancelable) e.preventDefault(); }, { passive:false });
+window.addEventListener('keydown', e => {
+  if (e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp'||e.code==='KeyW') {
+    if (e.repeat) return;
+    if (run.state === STATE.DEAD) { e.preventDefault(); retry(); return; }
+    press(e);
+  } else if ((e.code==='Escape' && BUILD.escPause) || e.code==='KeyP') {
+    if (run.state===STATE.PLAY) doPause(); else if (run.state===STATE.PAUSE) doResume();
+  } else if (e.code==='KeyM') toggleSound();
+  else if (G.key) G.key(e);
+});
+window.addEventListener('keyup', e => {
+  if (e.code==='Space'||e.code==='Enter'||e.code==='ArrowUp'||e.code==='KeyW') release(e);
+});
+window.addEventListener('blur', () => { input.held=false; if (run.state===STATE.PLAY) doPause(); });
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) { input.held=false; if (run.state===STATE.PLAY) doPause(); }
+});
+
+// Tap anywhere on the game-over screen — except on the rewarded button.
+el('over').addEventListener('pointerdown', e => {
+  if (e.target.closest && e.target.closest('#revive')) return;
+  if (e.cancelable) e.preventDefault();
+  retry();
+});
+el('revive').addEventListener('pointerdown', e => e.stopPropagation());
+el('again').addEventListener('click', e => { e.preventDefault(); retry(); });
+el('revive').addEventListener('click', async () => {
+  Sound.ui();
+  const ok = await Portal.rewarded();
+  if (!ok) return;
+  run.revived = true; run.state = STATE.PLAY;
+  G.revive();
+  show('play'); Sound.resume(); G.wake(); Portal.gameplayStart();
+});
+el('resume').addEventListener('click', () => { Sound.ui(); doResume(); });
+el('quit').addEventListener('click', () => { Sound.ui(); giveUp(); });
+el('btnPause').addEventListener('click', () => {
+  if (run.state===STATE.PLAY) doPause(); else if (run.state===STATE.PAUSE) doResume();
+});
+el('btnSound').addEventListener('click', toggleSound);
+
+/* =========================================================
+   LOOP
+   ========================================================= */
+
+let last = performance.now(), clock = 0;
+
+function frame(now) {
+  let dt = (now-last)/1000; last = now;
+  if (dt > 0.05) dt = 0.05;   // clamp after tab switches / hitches
+  clock += dt;
+
+  // Decays that run in every state
+  run.shake = Math.max(0, run.shake - dt*2.6);
+  run.flash = Math.max(0, run.flash - dt*2.2);
+  G.decay(dt);
+  stepFx(dt);
+
+  if (G.blocked && G.blocked()) {
+    input.held = false;
+    G.render(clock);
+    requestAnimationFrame(frame);
+    return;
+  }
+
+  if (run.state === STATE.PLAY && run.awaitFirst) {
+    G.idle(dt, clock);
+  } else if (run.state === STATE.PLAY) {
+    const scale = G.slow ? G.slow(dt) : 1;
+    if (run.hitstop > 0) run.hitstop -= dt;
+    else {
+      dt *= scale;
+      run.invuln = Math.max(0, run.invuln - dt);
+      run.time += dt;
+      G.step(dt);
+    }
+  } else if (run.state === STATE.DEAD) {
+    G.dead(dt);
+  }
+
+  G.syncHUD(dt);
+  G.render(clock);
+  requestAnimationFrame(frame);
+}
+
+/* =========================================================
+   BOOT
+   ========================================================= */
+
+// One handle every game exposes, so a harness can drive any of them the same
+// way (tools/triage.mjs). Games add their own richer handle beside it.
+window.__game = { run, input, STATE, G, Ads, begin: beginRun, restart: startRun };
+
+/* @dev-only */
+window.__game.Sound = Sound;   // the trailer harness taps the master gain
+/* @end-dev */
+
+// Android's back button: pause a live run rather than dropping out of the app.
+// Returns true if the game consumed it, false to let the host close.
+window.__gameBack = function () {
+  if (run.state === STATE.PLAY && !run.awaitFirst) { doPause(); return true; }
+  if (run.state === STATE.PAUSE) { doResume(); return true; }
+  return false;
+};
+
+async function boot() {
+  resize();
+  el('btnSound').style.color = Sound.on ? 'var(--ink)' : G.dim;
+  el('finalBest').textContent = run.best.toLocaleString();
+  if (CONTINUE_UI === 'none') el('revive').style.display = 'none';
+  else el('revive').innerHTML = '<span aria-hidden="true">&#9654;</span>&nbsp; Continue &mdash; watch ad';
+  await Portal.init();
+  Ads.load();                              // not awaited: the first retry is seconds away, boot is not
+  Portal.loadingFinished();
+  startRun();
+  requestAnimationFrame(frame);
+}
+
+// CargoSim — the whole game, as pure logic.
+//
+// No DOM, no canvas, no kernel imports, no Math.random. That is the point:
+// the same file runs inside the game, inside Node for the solver and bot, and
+// inside a replay. Given the same level and the same commands it always ends
+// the same way, which is what makes Jam Replay, undo and a solver possible.
+//
+// Every top-level name here is prefixed `sim`/`SIM` on purpose: kernel/build.mjs
+// flattens every module into one scope and throws on a duplicate declaration.
+//
+// The three playtest variants are configurations of this one simulation:
+//   A  lanes 1, switches off            (the Pixel Flow / Car Sort control)
+//   B  lanes 2, entry switch on         (the bet: you choose where it goes)
+//   C  lanes 2, switches on, autoRelease(the brief: you only flip junctions)
+
+const SIM = { PLAY: 1, WON: 2, JAM: 3 };
+
+// A lap is `slots` steps and a step is `ticksPerSlot` ticks, so at 20 ticks a
+// second the defaults give a 5 second lap. Belt speed never changes with
+// difficulty: difficulty comes from decisions, never from hurry.
+const SIM_DEFAULTS = {
+  ticksPerSlot: 5,
+  slots: 20,
+  pads: 5,
+  beltCap: 4,
+  // The loader. Every `feedEvery` ticks it is ready; the next tap on a column
+  // feeds that column at once, and if nobody taps for another `feedEvery` it
+  // feeds the last-aimed column anyway. 0 turns it off and release is instant.
+  //
+  // This exists because the solver proved the dock was never the binding
+  // constraint without it: nothing forced a careful player to have two crates
+  // in flight, so one pad cycled forever and P_min was 1 on every level.
+  // Pixel Flow gets this pressure for free, because a fired shooter returns to
+  // the tray with ammo left whether you like it or not.
+  feedEvery: 0,
+  autoRelease: false,   // variant C: crates arrive, the player may not aim
+  // How many times a crate may be sent round again. Infinity means the dock is
+  // a revolving door: a perfect player parks a crate, re-sends it at once and
+  // never needs a second pad, which is why the solver reported P_min 1 on every
+  // level. A finite limit makes the dock fill with genuinely stuck cargo, which
+  // is the tension the whole genre runs on.
+  resendLimit: Infinity,
+  // A parked crate may only go round again once a truck actually wants it.
+  // Without this the dock is a pass-through: the player re-sends instantly and
+  // keeps unwanted cargo circling, so the belt is the real buffer and the dock
+  // never fills. With it, stuck cargo stays stuck and the pads fill on their
+  // own, which is the tension. Capping re-sends instead just makes levels
+  // with deferred trucks unwinnable.
+  resendNeedsTruck: false,
+  entrySlot: 0,
+  junction: 10          // slot where a mid-loop switch can move a crate lanes
+};
+
+// level = {
+//   variant:'B', lanes:2, switches:['entry'], pads:5, beltCap:4,
+//   yard: [['R','B','?G'], ...],        // index 0 is the front crate
+//   bays: [{ lane:0, slot:5, queue:[['R','R','B'], ...] }, ...]
+// }
+// A '?' prefix hides the colour until the crate reaches the front of its column.
+function simCreate(level) {
+  const cfg = Object.assign({}, SIM_DEFAULTS, level);
+  let nextId = 1;
+  const yard = (level.yard || []).map(col => col.map(c => ({
+    id: nextId++, color: c.replace('?', ''), hidden: c[0] === '?'
+  })));
+  const lanes = [];
+  for (let i = 0; i < (level.lanes || 1); i++) lanes.push({ slots: cfg.slots, bays: [] });
+  for (const b of level.bays || []) {
+    const queue = b.queue.map(m => ({ manifest: m.slice(), filled: 0 }));
+    lanes[b.lane].bays.push({ slot: b.slot, truck: queue.shift() || null, queue });
+  }
+  const sim = {
+    cfg, tick: 0, state: SIM.PLAY,
+    yard, lanes,
+    transit: [],                       // crates riding the belt
+    dock: new Array(cfg.pads).fill(null),
+    entry: 0,                          // which lane the entry switch feeds
+    mid: false,                        // mid-loop switch: divert at the junction
+    log: [],                           // every command, for replay
+    jamCrate: null,                    // the crate that filled the last pad
+    delivered: 0, released: 0, flips: 0, resends: 0,
+    feedCol: 0,                        // the column the loader is aimed at
+    ready: cfg.feedEvery > 0,          // loader loaded and waiting for a choice
+    readyAt: 0, lastFeed: 0
+  };
+  simReveal(sim);
+  return sim;
+}
+
+// A hidden crate shows its colour once it is the front of its column.
+function simReveal(sim) {
+  for (const col of sim.yard) if (col.length && col[0].hidden) col[0].hidden = false;
+}
+
+function simClone(sim) {
+  // Structured clone keeps this honest: every field is plain data by design.
+  const c = structuredClone({ ...sim, cfg: null });
+  c.cfg = sim.cfg;                     // shared, never mutated
+  return c;
+}
+
+/* =========================================================
+   COMMANDS — the only way a player (or a bot) touches the sim
+   ========================================================= */
+
+// type: 'release' (target = yard column) | 'flip' (target = 'entry' | 'mid')
+//     | 'resend' (target = dock pad index)
+function simCmd(sim, type, target) {
+  if (sim.state !== SIM.PLAY) return false;
+  let ok = false;
+  if (type === 'release') ok = simRelease(sim, target);
+  else if (type === 'flip') ok = simFlip(sim, target);
+  else if (type === 'resend') ok = simResend(sim, target);
+  if (ok) sim.log.push({ tick: sim.tick, type, target });
+  return ok;
+}
+
+function simRelease(sim, col) {
+  if (sim.cfg.autoRelease) return false;          // variant C aims for you
+  const stack = sim.yard[col];
+  if (!stack || !stack.length) return false;
+
+  if (sim.cfg.feedEvery > 0) {
+    sim.feedCol = col;                            // aim, always allowed
+    if (!sim.ready) return true;                  // the loader is still filling
+    return simFeed(sim, col);                     // ready: go now
+  }
+  if (sim.transit.length >= sim.cfg.beltCap) return false;
+  simBoard(sim, stack.shift());
+  sim.released++;
+  simReveal(sim);
+  return true;
+}
+
+// Put the front crate of `col` on the belt and start the loader refilling.
+// Falls through to the next non-empty column so a stale aim never stalls it.
+function simFeed(sim, col) {
+  if (sim.transit.length >= sim.cfg.beltCap) return false;
+  const n = sim.yard.length;
+  for (let i = 0; i < n; i++) {
+    const c = (col + i) % n;
+    if (sim.yard[c].length) {
+      simBoard(sim, sim.yard[c].shift());
+      sim.released++; sim.feedCol = c;
+      sim.ready = false; sim.lastFeed = sim.tick;
+      simReveal(sim);
+      return true;
+    }
+  }
+  return false;
+}
+
+function simFlip(sim, which) {
+  const on = sim.cfg.switches || [];
+  if (!on.includes(which)) return false;
+  if (which === 'entry') sim.entry = (sim.entry + 1) % sim.lanes.length;
+  else if (which === 'mid') sim.mid = !sim.mid;
+  else return false;
+  sim.flips++;
+  return true;
+}
+
+// Is any truck waiting for this colour right now?
+function simWanted(sim, color) {
+  for (const lane of sim.lanes)
+    for (const b of lane.bays)
+      if (b.truck && b.truck.manifest[b.truck.filled] === color) return true;
+  return false;
+}
+
+function simResend(sim, pad) {
+  const crate = sim.dock[pad];
+  if (!crate) return false;
+  if (sim.cfg.resendNeedsTruck && !simWanted(sim, crate.color)) return false;
+  if (sim.transit.length >= sim.cfg.beltCap) return false;
+  if ((crate.sent || 0) >= sim.cfg.resendLimit) return false;
+  crate.sent = (crate.sent || 0) + 1;
+  sim.dock[pad] = null;
+  simBoard(sim, crate);
+  sim.resends++;
+  return true;
+}
+
+// Put a crate on the belt at the entry, in the lane the entry switch points at.
+function simBoard(sim, crate) {
+  sim.transit.push({
+    id: crate.id, color: crate.color, sent: crate.sent || 0,
+    lane: sim.entry, slot: sim.cfg.entrySlot, travelled: 0
+  });
+}
+
+/* =========================================================
+   THE TICK
+   ========================================================= */
+
+function simTick(sim) {
+  if (sim.state !== SIM.PLAY) return sim.state;
+  sim.tick++;
+
+  if (sim.tick % sim.cfg.ticksPerSlot === 0) simStep(sim);
+
+  // The loader: fill, offer the choice, then take it out of the player's hands.
+  const fe = sim.cfg.feedEvery;
+  if (fe > 0) {
+    if (!sim.ready && sim.tick - sim.lastFeed >= fe) { sim.ready = true; sim.readyAt = sim.tick; }
+    if (sim.ready && sim.tick - sim.readyAt >= fe) simFeed(sim, sim.feedCol);
+  }
+
+  simWinCheck(sim);
+  return sim.state;
+}
+
+// One slot of belt movement for every crate in transit, in a stable order.
+function simStep(sim) {
+  const still = [];
+  for (const c of sim.transit) {
+    const lane = sim.lanes[c.lane];
+    c.slot = (c.slot + 1) % lane.slots;
+    c.travelled++;
+
+    // A mid-loop switch moves the crate to the other lane at the junction.
+    if (sim.mid && c.slot === sim.cfg.junction && sim.lanes.length > 1) {
+      c.lane = (c.lane + 1) % sim.lanes.length;
+    }
+
+    // A truck takes the crate only if it is exactly what that truck needs next.
+    const bay = sim.lanes[c.lane].bays.find(b => b.slot === c.slot && b.truck);
+    if (bay && bay.truck.manifest[bay.truck.filled] === c.color) {
+      bay.truck.filled++;
+      sim.delivered++;
+      if (bay.truck.filled >= bay.truck.manifest.length) {
+        bay.truck = bay.queue.shift() || null;   // dispatched; next truck rolls in
+      }
+      continue;                                   // crate is gone from the belt
+    }
+
+    // A full lap with nowhere to go: it parks in the dock. No pad is a jam.
+    if (c.travelled >= lane.slots) {
+      const pad = sim.dock.indexOf(null);
+      if (pad < 0) { sim.state = SIM.JAM; sim.jamCrate = c.id; return; }
+      sim.dock[pad] = { id: c.id, color: c.color, hidden: false, sent: c.sent || 0 };
+      continue;
+    }
+    still.push(c);
+  }
+  sim.transit = still;
+}
+
+function simWinCheck(sim) {
+  if (sim.state !== SIM.PLAY) return;
+  for (const lane of sim.lanes)
+    for (const bay of lane.bays)
+      if (bay.truck || bay.queue.length) return;
+  sim.state = SIM.WON;
+}
+
+/* =========================================================
+   HELPERS the view, the bot and the solver share
+   ========================================================= */
+
+// Every command worth trying right now. The solver searches this, and it is
+// also what the view uses to grey out dead taps. With a loader, aiming at a
+// column is always worth trying, because it decides what feeds next.
+function simLegal(sim) {
+  const out = [];
+  if (sim.state !== SIM.PLAY) return out;
+  if (!sim.cfg.autoRelease)
+    for (let i = 0; i < sim.yard.length; i++)
+      if (sim.yard[i].length && (sim.cfg.feedEvery > 0 || sim.transit.length < sim.cfg.beltCap))
+        out.push({ type: 'release', target: i });
+  for (const s of sim.cfg.switches || []) out.push({ type: 'flip', target: s });
+  for (let i = 0; i < sim.dock.length; i++)
+    if (sim.dock[i] && sim.transit.length < sim.cfg.beltCap
+        && (sim.dock[i].sent || 0) < sim.cfg.resendLimit
+        && (!sim.cfg.resendNeedsTruck || simWanted(sim, sim.dock[i].color)))
+      out.push({ type: 'resend', target: i });
+  return out;
+}
+
+// Pads in use right now, and the worst it has been. P_min falls out of this.
+function simPadsUsed(sim) {
+  return sim.dock.reduce((n, p) => n + (p ? 1 : 0), 0);
+}
+
+// Replay a command log against a fresh sim: the basis of undo, Jam Replay and
+// the ad capture. `untilTick` stops early so the view can rewind.
+function simReplay(level, log, untilTick) {
+  const sim = simCreate(level);
+  const end = untilTick === undefined ? Infinity : untilTick;
+  let i = 0;
+  while (sim.state === SIM.PLAY && sim.tick < end) {
+    while (i < log.length && log[i].tick === sim.tick) {
+      const c = log[i++];
+      simCmd(sim, c.type, c.target);
+    }
+    simTick(sim);
+  }
+  return sim;
+}
+
+// Ten levels per variant, hand-made. Step 3 of the brief grows this to thirty;
+// these are the first rungs, enough to see the board work.
+//
+// A level is data only, so the solver in Node and the game in a browser read
+// exactly the same thing. '?' hides a crate until it reaches the front of its
+// column. Colours are single letters so a level stays readable as text.
+//
+// Variants are configurations, not code paths:
+//   A  one lane, no switch      the control
+//   B  two lanes, entry switch  the bet
+//   C  two lanes, both switches, crates released for you
+
+const bay = (lane, slot, ...queue) => ({ lane, slot, queue });
+
+// Shared shape for every level; a level overrides what it needs. feedEvery is
+// the loader cadence: a lap is 100 ticks, so feeding every 70 keeps roughly
+// two crates in flight and makes the dock fill on its own. Without it the
+// solver showed a careful player never needs a second pad.
+// resendNeedsTruck is the rule that makes the dock a buffer instead of a
+// pass-through: a parked crate waits until a truck actually wants it. With it
+// off, P_min was 1 on every level — a player just kept unwanted cargo circling.
+const base = { slots: 20, ticksPerSlot: 5, beltCap: 4, pads: 5,
+               feedEvery: 70, resendNeedsTruck: true };
+const A = l => Object.assign({ variant: 'A', lanes: 1, switches: [] }, base, l);
+const B = l => Object.assign({ variant: 'B', lanes: 2, switches: ['entry'] }, base, l);
+const C = l => Object.assign({ variant: 'C', lanes: 2, switches: ['entry', 'mid'],
+                               autoRelease: true }, base, l);
+
+// ---- A: release only. The proven grammar, and our control. -----------------
+const LEVELS_A = [
+  A({ name: 'One truck',      yard: [['R', 'R']],                bays: [bay(0, 6, ['R', 'R'])] }),
+  A({ name: 'Two colours',    yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 6, ['R', 'B'])] }),
+  A({ name: 'Wrong order',    yard: [['B', 'R'], ['R', 'B']],    bays: [bay(0, 6, ['R', 'R', 'B'])] }),
+  A({ name: 'Two trucks',     yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 5, ['R', 'R']), bay(0, 13, ['B', 'B'])] }),
+  A({ name: 'Buried need',    yard: [['B', 'B', 'R'], ['R', 'B']], bays: [bay(0, 6, ['R', 'R', 'B', 'B', 'B'])] }),
+  A({ name: 'Queue up',       yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 6, ['R', 'B'], ['B', 'R'])] }),
+  A({ name: 'Hidden crate',   yard: [['R', '?B'], ['B', '?R']],  bays: [bay(0, 6, ['R', 'B', 'B', 'R'])] }),
+  A({ name: 'Three colours',  yard: [['R', 'G'], ['B', 'R'], ['G', 'B']], bays: [bay(0, 5, ['R', 'B']), bay(0, 13, ['G', 'R', 'G', 'B'])] }),
+  A({ name: 'Dig it out',     pads: 4, yard: [['B', 'R'], ['B', 'R'], ['B', 'R']],
+      bays: [bay(0, 6, ['R', 'R', 'R'], ['B', 'B', 'B'])] }),
+  // Tightness needs a CHOICE, not a forced order. Here every column offers
+  // something: take the two reds on top first and only two greens ever park;
+  // start with a green and the pads fill before the reds are dug out. The
+  // earlier version buried every red under a green, so the player had no
+  // decision to get wrong and the bot won every time.
+  A({ name: 'Last pad',       pads: 2, yard: [['R', 'G'], ['G', 'R'], ['R', 'G'], ['G', 'R']],
+      bays: [bay(0, 6, ['R', 'R', 'R', 'R'], ['G', 'G', 'G', 'G'])] })
+];
+
+// ---- B: release plus routing. The switch arrives at level 4. ---------------
+const LEVELS_B = [
+  B({ name: 'One truck',      lanes: 1, switches: [], yard: [['R', 'R']], bays: [bay(0, 6, ['R', 'R'])] }),
+  B({ name: 'Two colours',    lanes: 1, switches: [], yard: [['R', 'B'], ['B', 'R']], bays: [bay(0, 6, ['R', 'B'])] }),
+  B({ name: 'Wrong order',    lanes: 1, switches: [], yard: [['B', 'R'], ['R', 'B']], bays: [bay(0, 6, ['R', 'R', 'B'])] }),
+  // The switch, taught on the simplest board that needs it: the only truck is
+  // in lane B, so a crate sent straight ahead can only lap and park.
+  B({ name: 'Flip it',        yard: [['R', 'R']],                bays: [bay(1, 5, ['R', 'R'])] }),
+  B({ name: 'One each way',   yard: [['R', 'B'], ['B', 'R']],    bays: [bay(0, 15, ['R', 'R']), bay(1, 5, ['B', 'B'])] }),
+  B({ name: 'Split decision', yard: [['R', 'B'], ['B', 'R'], ['R', 'B']],
+      bays: [bay(0, 15, ['R', 'R', 'R']), bay(1, 5, ['B', 'B', 'B'])] }),
+  B({ name: 'Hidden route',   yard: [['R', '?B'], ['B', '?R']],  bays: [bay(0, 15, ['R', 'R']), bay(1, 5, ['B', 'B'])] }),
+  B({ name: 'Three colours',  yard: [['G', 'R'], ['B', 'G'], ['R', 'B']],
+      bays: [bay(0, 13, ['R', 'G']), bay(1, 5, ['B', 'G']), bay(0, 17, ['R', 'B'])] }),
+  B({ name: 'Dig it out',     pads: 4, yard: [['G', 'R'], ['G', 'B'], ['G', 'R'], ['G', 'B']],
+      bays: [bay(0, 15, ['R', 'R'], ['G', 'G']), bay(1, 5, ['B', 'B'], ['G', 'G'])] }),
+  // The crate pool is exactly the union of the manifests: no decoys, so a level
+  // is never lost to cargo that had nowhere to go. This one was unsolvable
+  // until the solver caught that it asked for three greens and supplied two.
+  // The same choice, with a lane to get wrong as well as an order.
+  B({ name: 'Last pad',       pads: 2, yard: [['R', 'B'], ['B', 'R'], ['R', 'B'], ['B', 'R']],
+      bays: [bay(0, 15, ['R', 'R', 'R'], ['B', 'B']), bay(1, 5, ['R'], ['B', 'B'])] })
+];
+
+// ---- C: the original brief. Crates arrive on their own; you only route. ----
+const LEVELS_C = LEVELS_B.map((l, i) => C({
+  name: l.name, pads: l.pads, yard: l.yard,
+  // Lane 0 keeps a truck in every level: with no release verb, a crate the
+  // player cannot divert still has to have somewhere to go.
+  bays: l.bays.map(b => ({ lane: b.lane, slot: b.slot, queue: b.queue })),
+  // C cannot aim, so it gets a slower belt of arrivals than A and B.
+  feedEvery: i < 3 ? 90 : 78
+}));
+
+const LEVEL_SETS = { A: LEVELS_A, B: LEVELS_B, C: LEVELS_C };
+
+/* =========================================================
+   WORLD — a fixed portrait board, scaled to whatever the phone is
+   ========================================================= */
+
+// 720x1480 is roughly a modern phone. At 720x1280 the board letterboxed with
+// 150 px of dead space top and bottom on a 390x844 screen, which makes a
+// graybox look smaller and cheaper than it is.
+const W = 720, H = 1480;                 // board units; everything below is in these
+const CRATE = 38;                        // a crate is a rounded square this big
+const YARD_Y = 1196, YARD_H = 230;       // the columns you release from
+const DOCK_Y = 1006;                     // the holding dock row
+const SWITCH_Y = 936;                    // the entry switch sits between dock and loops
+const LOADER_Y = 1136;                   // the loader, between the dock and the yard
+
+// Colour is the puzzle, so it must survive colour blindness: every crate also
+// carries its letter. Never rely on hue alone.
+const PAINT = { R:'#E2574C', B:'#3E8FD8', G:'#46B06B', Y:'#EFC03A', P:'#9A6BD8' };
+
+/* =========================================================
+   VARIANT — ?v=A|B|C, then sticky, so a tester keeps the same game
+   ========================================================= */
+
+// A playable ad is not a playtest: one variant, one level, one end card.
+const PLAYABLE = BUILD.playable === true;
+const PLAYABLE_LEVEL = 3;                // "Flip it" — the board that teaches the switch
+
+const qs = new URLSearchParams(location.search);
+const asked = PLAYABLE ? 'B' : (qs.get('v') || '').toUpperCase();
+let VARIANT = ['A','B','C'].includes(asked) ? asked : (store('cargo.variant') || '');
+if (!VARIANT) {
+  // No assignment yet and none asked for: split testers evenly at random. This
+  // is the only randomness anywhere near this game, and it never touches a level.
+  VARIANT = ['A','B','C'][Math.floor(Math.random() * 3)];
+}
+store('cargo.variant', VARIANT);
+const SET = LEVEL_SETS[VARIANT];
+const PROGRESS_KEY = 'cargo.level.' + VARIANT;
+
+let levelIdx = PLAYABLE ? PLAYABLE_LEVEL
+  : clamp(parseInt(store(PROGRESS_KEY) || '0', 10) || 0, 0, SET.length - 1);
+let sim = simCreate(SET[levelIdx]);
+let acc = 0;                             // seconds of game time not yet ticked
+let padBonus = 0;                        // pads granted by a rewarded continue
+let replay = null, finalSim = null;      // Jam Replay: the rewind after a fail
+let seenDelivered = 0, seenTick = 0;
+const pop = new Map();                   // bay slot -> remaining pop seconds
+
+/* =========================================================
+   SESSION LOG — no SDK, no network, no consent banner. It lives in
+   localStorage and comes out as JSON when a tester presses L.
+   ========================================================= */
+
+const LOG = [];
+let attempt = 0, levelStarted = 0, firstDelivery = 0, lastFailAt = 0, offerShown = false;
+
+function ev(type, extra) {
+  LOG.push(Object.assign({
+    ms: Math.round(performance.now()), type, v: VARIANT, level: levelIdx + 1, attempt
+  }, extra || {}));
+  try { store('cargo.log', JSON.stringify(LOG.slice(-500))); } catch (e) {}
+}
+
+function dumpLog() {
+  const text = JSON.stringify(LOG, null, 1);
+  console.log(text);
+  try { navigator.clipboard.writeText(text); } catch (e) {}
+  return text;
+}
+
+/* =========================================================
+   SOUND — synthesised, like every other game here
+   ========================================================= */
+
+Sound.init('cargo.sound', 0.38, {
+  release() { this.tone(220, 0.06, 'square', 0.05, 300); },
+  // The thunk is the reward. It is the single most important sound here.
+  thunk()   { this.tone(150, 0.09, 'sine', 0.16, 90); this.noise(0.05, 0.05, 1800); },
+  flip()    { this.tone(880, 0.05, 'square', 0.07, 1200); },
+  deny()    { this.tone(120, 0.07, 'sawtooth', 0.05, 90); },
+  dispatch(){ this.tone(330, 0.10, 'triangle', 0.10, 500); setTimeout(() => this.tone(500, 0.16, 'sine', 0.09, 660), 90); },
+  horn()    { this.tone(150, 0.5, 'sawtooth', 0.13, 110); setTimeout(() => this.tone(120, 0.6, 'sawtooth', 0.12, 90), 160); },
+  win()     { [0,90,180].forEach((d, i) => setTimeout(() => this.tone(420 + i*160, 0.18, 'triangle', 0.10), d)); },
+  ui()      { this.tone(600, 0.05, 'sine', 0.05); },
+  die()     { this.horn(); }
+});
+
+/* =========================================================
+   GEOMETRY — where a slot is, where a tap lands
+   ========================================================= */
+
+// Lane ellipses. One lane is centred; two sit side by side.
+function laneBox(i) {
+  const one = sim.lanes.length === 1;
+  return one ? { cx: W/2, cy: 510, rx: 188, ry: 252 }
+             : { cx: i === 0 ? 206 : 514, cy: 510, rx: 126, ry: 252 };
+}
+
+// A slot's point on the belt. `frac` slides between this slot and the next, so
+// the view can interpolate between 20 Hz ticks and still look continuous.
+function slotPt(laneIdx, slot, frac = 0) {
+  const b = laneBox(laneIdx);
+  const t = (slot + frac) / sim.lanes[laneIdx].slots;
+  const a = -Math.PI/2 + t * TAU;
+  return { x: b.cx + Math.cos(a) * b.rx, y: b.cy + Math.sin(a) * b.ry, a };
+}
+
+function yardRect(i) {
+  const n = sim.yard.length, gap = 14;
+  const w = Math.min(96, (W - 120 - gap * (n - 1)) / n);
+  const x0 = (W - (w * n + gap * (n - 1))) / 2;
+  return { x: x0 + i * (w + gap), y: YARD_Y, w, h: YARD_H };
+}
+
+function padRect(i) {
+  const n = sim.dock.length, gap = 10, w = 56;
+  const x0 = (W - (w * n + gap * (n - 1))) / 2;
+  return { x: x0 + i * (w + gap), y: DOCK_Y, w, h: 56 };
+}
+
+const entryPt = () => ({ x: W/2, y: SWITCH_Y, r: 46 });
+const midPt   = () => ({ x: W/2, y: 510, r: 40 });
+
+// Screen pixels to board units. The render transform is the inverse of this.
+function toBoard(px, py) {
+  return { x: (px - view.px) / view.scale, y: (py - view.py) / view.scale };
+}
+const inRect = (p, r) => p.x >= r.x && p.x <= r.x + r.w && p.y >= r.y && p.y <= r.y + r.h;
+const inCircle = (p, c) => (p.x - c.x) ** 2 + (p.y - c.y) ** 2 <= c.r * c.r;
+
+/* =========================================================
+   INPUT — one tap, several possible targets
+   ========================================================= */
+
+function tapBoard() {
+  if (run.state !== STATE.PLAY || sim.state !== SIM.PLAY) return;
+  const p = toBoard(input.x, input.y);
+  let did = false;
+
+  if ((sim.cfg.switches || []).includes('entry') && inCircle(p, entryPt()))
+    did = simCmd(sim, 'flip', 'entry') && (Sound.flip(), haptic(8), true);
+  else if ((sim.cfg.switches || []).includes('mid') && inCircle(p, midPt()))
+    did = simCmd(sim, 'flip', 'mid') && (Sound.flip(), haptic(8), true);
+
+  if (!did) for (let i = 0; i < sim.dock.length; i++)
+    if (sim.dock[i] && inRect(p, padRect(i))) {
+      did = simCmd(sim, 'resend', i);
+      if (did) { Sound.release(); haptic(6); }
+      break;
+    }
+
+  if (!did) for (let i = 0; i < sim.yard.length; i++)
+    if (inRect(p, yardRect(i))) {
+      did = simCmd(sim, 'release', i);
+      if (did) { Sound.release(); haptic(6); }
+      else { Sound.deny(); run.shake = Math.max(run.shake, 0.25); }   // belt full, or empty column
+      break;
+    }
+}
+
+/* =========================================================
+   DRAWING — graybox, but every state must be readable at a glance
+   ========================================================= */
+
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+
+function drawCrate(x, y, color, size = CRATE, alpha = 1) {
+  ctx.globalAlpha = alpha;
+  ctx.fillStyle = PAINT[color] || '#8899A8';
+  roundRect(x - size/2, y - size/2, size, size, 7); ctx.fill();
+  ctx.fillStyle = 'rgba(10,14,18,.62)';
+  ctx.font = `700 ${Math.round(size * 0.52)}px ui-monospace, Menlo, monospace`;
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(color, x, y + 1);
+  ctx.globalAlpha = 1;
+}
+
+function drawLane(i) {
+  const b = laneBox(i);
+  ctx.strokeStyle = sim.state === SIM.JAM ? 'rgba(228,100,90,.5)' : 'var(--belt)';
+  ctx.strokeStyle = sim.state === SIM.JAM ? 'rgba(228,100,90,.5)' : '#36485A';
+  ctx.lineWidth = 46;
+  ctx.beginPath(); ctx.ellipse(b.cx, b.cy, b.rx, b.ry, 0, 0, TAU); ctx.stroke();
+  // Dashes that show which way the belt runs, without animating anything.
+  ctx.strokeStyle = 'rgba(232,238,243,.13)';
+  ctx.lineWidth = 2; ctx.setLineDash([6, 16]);
+  ctx.beginPath(); ctx.ellipse(b.cx, b.cy, b.rx, b.ry, 0, 0, TAU); ctx.stroke();
+  ctx.setLineDash([]);
+  if (sim.lanes.length > 1) {
+    ctx.fillStyle = 'rgba(136,153,168,.35)';
+    ctx.font = '700 17px ui-monospace, Menlo, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText(i === 0 ? 'A' : 'B', b.cx, b.cy);
+  }
+}
+
+// A truck: its manifest is dots, filled left to right. The next needed dot is
+// ringed, because "what does this truck want NOW" is the whole read.
+function drawBay(laneIdx, bay) {
+  const b = laneBox(laneIdx);
+  const p = slotPt(laneIdx, bay.slot);
+  const out = 60, ux = (p.x - b.cx) / b.rx, uy = (p.y - b.cy) / b.ry;
+  const len = Math.hypot(ux, uy) || 1;
+  // Outside the belt, but never outside the board: a truck you cannot see is a
+  // manifest you cannot read, and the manifest is the whole puzzle.
+  const x = clamp(p.x + (ux / len) * out, 60, W - 60);
+  const y = clamp(p.y + (uy / len) * out, 44, H - 44);
+  const boost = pop.get(laneIdx + ':' + bay.slot) || 0;
+  const s = 1 + boost * 0.9;
+
+  // A short stalk back to the belt: with two lanes a truck can end up nearer
+  // the other loop than its own, and "whose truck is this" must never be a guess.
+  ctx.strokeStyle = 'rgba(136,153,168,.45)'; ctx.lineWidth = 3;
+  ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(x, y); ctx.stroke();
+
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  const w = 104, h = 54;
+  ctx.fillStyle = bay.truck ? '#243141' : 'rgba(36,49,65,.35)';
+  roundRect(-w/2, -h/2, w, h, 8); ctx.fill();
+  ctx.strokeStyle = 'rgba(136,153,168,.4)'; ctx.lineWidth = 2; ctx.stroke();
+
+  if (bay.truck) {
+    const m = bay.truck.manifest, n = m.length, gap = Math.min(24, (w - 16) / n);
+    for (let i = 0; i < n; i++) {
+      const dx = -((n - 1) * gap) / 2 + i * gap;
+      ctx.beginPath(); ctx.arc(dx, 0, 8, 0, TAU);
+      if (i < bay.truck.filled) { ctx.fillStyle = PAINT[m[i]]; ctx.fill(); }
+      else {
+        ctx.strokeStyle = PAINT[m[i]] || '#8899A8';
+        ctx.lineWidth = i === bay.truck.filled ? 3.5 : 2;
+        ctx.globalAlpha = i === bay.truck.filled ? 1 : .45;
+        ctx.stroke(); ctx.globalAlpha = 1;
+      }
+    }
+    if (bay.queue.length) {
+      ctx.fillStyle = 'rgba(136,153,168,.7)';
+      ctx.font = '600 12px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('+' + bay.queue.length, 0, h/2 + 13);
+    }
+  }
+  ctx.restore();
+}
+
+function drawSwitch() {
+  const sw = sim.cfg.switches || [];
+  if (sw.includes('entry')) {
+    const e = entryPt(), right = sim.entry === 1;
+    ctx.fillStyle = '#1B242E';
+    ctx.beginPath(); ctx.arc(e.x, e.y, e.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#F2B53A'; ctx.lineWidth = 3.5; ctx.stroke();
+    // The arrow is the promise: this is where the next crate goes.
+    const dir = sim.lanes.length === 1 ? 0 : (right ? 1 : -1);
+    ctx.strokeStyle = '#E8EEF3'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+    ctx.beginPath(); ctx.moveTo(e.x - dir * 20, e.y); ctx.lineTo(e.x + dir * 8, e.y); ctx.stroke();
+    ctx.fillStyle = '#E8EEF3';
+    ctx.beginPath();
+    ctx.moveTo(e.x + dir * 24, e.y);
+    ctx.lineTo(e.x + dir * 6, e.y - 13);
+    ctx.lineTo(e.x + dir * 6, e.y + 13);
+    ctx.closePath(); ctx.fill();
+    ctx.lineCap = 'butt';
+  }
+  if (sw.includes('mid')) {
+    const m = midPt();
+    ctx.fillStyle = sim.mid ? '#F2B53A' : '#1B242E';
+    ctx.beginPath(); ctx.arc(m.x, m.y, m.r, 0, TAU); ctx.fill();
+    ctx.strokeStyle = '#F2B53A'; ctx.lineWidth = 3; ctx.stroke();
+    ctx.fillStyle = sim.mid ? '#1A1302' : '#8899A8';
+    ctx.font = '700 15px ui-monospace, Menlo, monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('X', m.x, m.y + 1);
+  }
+}
+
+// The loader is the clock the player plays against, so it has to be visible:
+// a bar that fills, and a marker over the column it will take from next.
+function drawLoader() {
+  const fe = sim.cfg.feedEvery;
+  if (!fe) return;
+  const w = 260, h = 16, x = (W - w) / 2;
+  const p = sim.ready ? 1 : clamp((sim.tick - sim.lastFeed) / fe, 0, 1);
+  ctx.fillStyle = 'rgba(27,36,46,.9)';
+  roundRect(x, LOADER_Y, w, h, 8); ctx.fill();
+  ctx.fillStyle = sim.ready ? '#F2B53A' : '#3E8FD8';
+  roundRect(x + 2, LOADER_Y + 2, Math.max(6, (w - 4) * p), h - 4, 6); ctx.fill();
+  ctx.fillStyle = sim.ready ? '#F2B53A' : 'rgba(136,153,168,.75)';
+  ctx.font = '700 12px ui-monospace, Menlo, monospace';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText(sim.ready ? 'LOADER READY' : 'LOADING', W / 2, LOADER_Y - 12);
+
+  // Which pile it takes from, unless the player says otherwise.
+  if (!sim.cfg.autoRelease) {
+    const r = yardRect(sim.feedCol);
+    ctx.fillStyle = '#F2B53A';
+    ctx.beginPath();
+    ctx.moveTo(r.x + r.w / 2, LOADER_Y + h + 8);
+    ctx.lineTo(r.x + r.w / 2 - 9, LOADER_Y + h + 22);
+    ctx.lineTo(r.x + r.w / 2 + 9, LOADER_Y + h + 22);
+    ctx.closePath(); ctx.fill();
+  }
+}
+
+function drawYard() {
+  for (let i = 0; i < sim.yard.length; i++) {
+    const r = yardRect(i), col = sim.yard[i];
+    const aimed = !sim.cfg.autoRelease && i === sim.feedCol;
+    ctx.fillStyle = aimed ? 'rgba(40,53,67,.95)' : 'rgba(27,36,46,.75)';
+    roundRect(r.x, r.y, r.w, r.h, 8); ctx.fill();
+    ctx.strokeStyle = aimed ? 'rgba(242,181,58,.8)' : 'rgba(136,153,168,.22)';
+    ctx.lineWidth = aimed ? 2.5 : 1.5; ctx.stroke();
+    for (let j = 0; j < col.length && j < 4; j++) {
+      const c = col[j], y = r.y + 30 + j * (CRATE + 8);
+      if (y > r.y + r.h - 16) break;
+      if (c.hidden) {
+        ctx.fillStyle = '#3A4757';
+        roundRect(r.x + r.w/2 - CRATE/2, y - CRATE/2, CRATE, CRATE, 7); ctx.fill();
+        ctx.fillStyle = '#8899A8';
+        ctx.font = '700 20px ui-monospace, Menlo, monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText('?', r.x + r.w/2, y + 1);
+      } else drawCrate(r.x + r.w/2, y, c.color, CRATE, j === 0 ? 1 : 0.5);
+    }
+    if (col.length > 4) {
+      ctx.fillStyle = 'rgba(136,153,168,.7)';
+      ctx.font = '600 12px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText('+' + (col.length - 4), r.x + r.w/2, r.y + r.h - 10);
+    }
+  }
+}
+
+function drawDock() {
+  const full = sim.dock.every(p => p);
+  for (let i = 0; i < sim.dock.length; i++) {
+    const r = padRect(i), c = sim.dock[i];
+    ctx.strokeStyle = full ? '#E4645A' : c ? 'rgba(242,181,58,.8)' : 'rgba(136,153,168,.35)';
+    ctx.lineWidth = 2; ctx.setLineDash(c ? [] : [5, 4]);
+    roundRect(r.x, r.y, r.w, r.h, 7); ctx.stroke();
+    ctx.setLineDash([]);
+    // A crate nobody wants yet cannot go round again, and must look like it:
+    // a tap that does nothing is the fastest way to lose a player's trust.
+    if (c) drawCrate(r.x + r.w/2, r.y + r.h/2, c.color, CRATE,
+                     (!sim.cfg.resendNeedsTruck || simWanted(sim, c.color)) ? 1 : 0.38);
+  }
+}
+
+function drawTransit() {
+  const tps = sim.cfg.ticksPerSlot;
+  const frac = clamp(((sim.tick % tps) + acc * 20) / tps, 0, 1);
+  for (const c of sim.transit) {
+    const p = slotPt(c.lane, c.slot, frac);
+    drawCrate(p.x, p.y, c.color, CRATE - 2);
+    if (replay && c.id === replay.crate) {
+      ctx.strokeStyle = '#E4645A'; ctx.lineWidth = 4;
+      ctx.beginPath(); ctx.arc(p.x, p.y, CRATE, 0, TAU); ctx.stroke();
+    }
+  }
+}
+
+function drawFx() {
+  for (const p of parts) {
+    ctx.globalAlpha = clamp(1 - p.age / p.life, 0, 1);
+    ctx.fillStyle = p.c;
+    ctx.fillRect(p.x - p.r, p.y - p.r, p.r * 2, p.r * 2);
+  }
+  ctx.globalAlpha = 1;
+}
+
+/* =========================================================
+   THE KERNEL SEAM
+   ========================================================= */
+
+function padsLeft() { return sim.dock.filter(p => !p).length; }
+
+// The level as it is actually being played, pads included. The solver, the
+// replay and the game all have to agree on this or a rewind drifts.
+function levelCfg() {
+  const lvl = SET[levelIdx];
+  return padBonus ? Object.assign({}, lvl, { pads: lvl.pads + padBonus }) : lvl;
+}
+
+function loadLevel(retryOfSame) {
+  const lvl = SET[levelIdx];
+  replay = null; finalSim = null;
+  sim = simCreate(levelCfg());
+  acc = 0; seenDelivered = 0; seenTick = 0; pop.clear();
+  el('levelName').textContent = (levelIdx + 1) + '. ' + lvl.name;
+  el('vtag').textContent = 'VARIANT ' + VARIANT;
+  attempt = retryOfSame ? attempt + 1 : 1;
+  levelStarted = performance.now(); firstDelivery = 0; offerShown = false;
+  ev('level_start', {
+    name: lvl.name, pads: sim.dock.length,
+    // Did they come straight back, or think about it? The genre lives on this.
+    retried_within_10s: lastFailAt ? performance.now() - lastFailAt < 10000 : null
+  });
+}
+
+Object.assign(G, {
+  layout() {
+    // Fit the whole board on screen, letterboxed. A puzzle must never be
+    // cropped: a target you cannot see is a target you cannot tap.
+    view.scale = Math.min(view.w / W, view.h / H);
+    view.px = (view.w - W * view.scale) / 2;
+    view.py = (view.h - H * view.scale) / 2;
+    for (const l of [el('hud'), el('intro'), el('over'), el('paused')]) {
+      l.style.left = '0px'; l.style.top = '0px';
+      l.style.width = view.w + 'px'; l.style.height = view.h + 'px';
+    }
+  },
+
+  reset() {
+    const same = run.cause === 'Jam';        // a jam repeats; a win moves on
+    padBonus = 0;
+    loadLevel(same);
+  },
+
+  // The first tap starts the run, and must also do what it was aimed at:
+  // tapping a column and getting nothing would teach the wrong lesson.
+  launch() { tapBoard(); },
+  tap() { tapBoard(); },
+
+  // L dumps the session as JSON and copies it, which is the whole analytics
+  // stack for a two-week prototype.
+  key(e) { if (e.code === 'KeyL') dumpLog(); },
+
+  decay(dt) {
+    for (const [k, v] of pop) { const n = v - dt * 3.2; n <= 0 ? pop.delete(k) : pop.set(k, n); }
+  },
+
+  idle() {},                     // the board is already drawn; nothing to animate yet
+  // Run the rewind in slow motion while the panel waits.
+  dead(dt) {
+    if (!replay || sim.tick >= replay.to) return;
+    replay.acc += dt * 0.9;
+    while (replay.acc >= 1/20 && sim.tick < replay.to) { replay.acc -= 1/20; simTick(sim); }
+  },
+  wake() {}, hush() {},          // no continuous audio in the prototype
+
+  step(dt) {
+    acc += dt;
+    const secPerTick = 1 / 20;
+    let guard = 8;               // after a tab switch, catch up but never spiral
+    while (acc >= secPerTick && guard-- > 0 && sim.state === SIM.PLAY) {
+      acc -= secPerTick;
+      simTick(sim);
+      if (sim.delivered > seenDelivered) {
+        if (!firstDelivery) { firstDelivery = performance.now(); ev('first_delivery', { s: +((firstDelivery - levelStarted) / 1000).toFixed(1) }); }
+        seenDelivered = sim.delivered;
+        Sound.thunk(); haptic(12);
+        for (const lane of sim.lanes) for (const b of lane.bays)
+          if (b.truck && b.truck.filled > 0) pop.set(sim.lanes.indexOf(lane) + ':' + b.slot, 1);
+      }
+    }
+    if (acc > secPerTick * 8) acc = secPerTick;
+    if (sim.state === SIM.WON) { Sound.win(); die('Dispatched'); }
+    else if (sim.state === SIM.JAM) die('Jam');
+  },
+
+  syncHUD() {
+    const left = padsLeft(), n = sim.dock.length;
+    const e = el('pads');
+    e.textContent = left + ' / ' + n + ' pads';
+    e.className = 'mono' + (left === 0 ? ' last' : left <= 1 ? ' tight' : '');
+  },
+
+  render() {
+    ctx.setTransform(view.dpr, 0, 0, view.dpr, 0, 0);
+    ctx.fillStyle = '#11161C';
+    ctx.fillRect(0, 0, view.w, view.h);
+    ctx.save();
+    const sh = run.shake > 0 ? (Math.random() - 0.5) * run.shake * 14 : 0;
+    ctx.translate(view.px + sh, view.py);
+    ctx.scale(view.scale, view.scale);
+
+    ctx.fillStyle = '#161D25';
+    roundRect(8, 8, W - 16, H - 16, 18); ctx.fill();
+
+    for (let i = 0; i < sim.lanes.length; i++) drawLane(i);
+    for (let i = 0; i < sim.lanes.length; i++)
+      for (const b of sim.lanes[i].bays) drawBay(i, b);
+    drawSwitch();
+    drawTransit();
+    drawDock();
+    drawLoader();
+    drawYard();
+    drawFx();
+    if (replay) {
+      ctx.fillStyle = '#E4645A';
+      ctx.font = '700 20px ui-monospace, Menlo, monospace';
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText('JAM REPLAY', W/2, 150);
+      ctx.fillStyle = 'rgba(232,238,243,.55)';
+      ctx.font = '600 14px ui-monospace, Menlo, monospace';
+      ctx.fillText('this one had nowhere to go', W/2, 178);
+    }
+    ctx.restore();
+  },
+
+  crash(cause) {
+    if (cause === 'Jam') {
+      run.shake = 0.9; haptic([20, 40, 90]);
+      const r = padRect(sim.dock.length - 1);
+      burst(r.x + r.w/2, r.y + r.h/2, 14, { color: '#E4645A', maxSpeed: 190, maxLife: .5 });
+
+      // Jam Replay. The command log plus a deterministic sim means a rewind is
+      // just a shorter replay, so this costs nothing to compute and is the one
+      // thing that can make a fail feel like the player's own mistake rather
+      // than bad luck. crash() runs before the kernel schedules the game-over
+      // panel, so widening overDelay here holds the screen for it.
+      finalSim = sim;
+      const from = Math.max(0, sim.tick - 44);            // about two seconds
+      replay = { to: sim.tick, crate: sim.jamCrate, acc: 0, from };
+      sim = simReplay(levelCfg(), finalSim.log, from);
+      // 44 ticks at 0.9x is about 2.4 s of rewind; the panel waits just past
+      // it. Any slower and the retry stops feeling instant, which is the one
+      // thing this genre cannot afford to lose.
+      G.overDelay = 2600;
+      ev('jam_replay_shown', { from, to: replay.to });
+    } else {
+      haptic(20);
+      burst(W/2, 510, 18, { color: '#59C08A', maxSpeed: 220, maxLife: .6 });
+      G.overDelay = 900;
+    }
+  },
+
+  // A win advances; a jam repeats the same level. Progress is per variant.
+  record() {
+    if (PLAYABLE) return false;          // an ad has one level and never advances
+    if (run.cause === 'Dispatched' && levelIdx < SET.length - 1) {
+      levelIdx++; store(PROGRESS_KEY, String(levelIdx));
+    }
+    return false;
+  },
+
+  overPanel() {
+    const won = run.cause === 'Dispatched';
+    const end = finalSim || sim;
+    ev(won ? 'level_complete' : 'level_fail', {
+      s: +((performance.now() - levelStarted) / 1000).toFixed(1),
+      taps: end.log.length,
+      releases: end.released, flips: end.flips, resends: end.resends,
+      pads_left: end.dock.filter(p => !p).length, delivered: end.delivered,
+      fail_reason: won ? null : 'dock_full'
+    });
+    if (!won) { lastFailAt = performance.now(); offerShown = true; ev('offer_shown', { offer: 'free_pad' }); }
+    el('overLabel').textContent = won ? 'Dispatched' : 'Jam';
+    el('finalTrucks').textContent = end.delivered;
+    el('finalTaps').textContent = end.log.length;
+    el('finalPads').textContent = end.dock.filter(p => !p).length;
+    el('finalLevel').textContent = levelIdx + 1;
+    if (PLAYABLE) {
+      el('overLabel').textContent = won ? 'Loaded.' : 'Jammed.';
+      el('finalTrucks').textContent = 'CARGO LOOP';
+      el('finalTrucks').style.fontSize = '26px';
+      el('again').textContent = won ? 'Tap to play the rest' : 'Tap to try again';
+      el('cta').style.display = 'block';
+      el('revive').style.display = 'none';
+      return;
+    }
+    el('again').textContent = won ? 'Tap anywhere for the next level' : 'Tap anywhere to retry';
+    // The kernel writes "Continue — watch ad" at boot. There are no ads here:
+    // this button is the booster-demand proxy, so it says what it does.
+    el('revive').textContent = 'Free +1 pad — keep going';
+  },
+
+  // The rewarded continue is literally the fail offer this genre lives on:
+  // one more pad, same board, carry on from where it jammed.
+  revive() {
+    if (offerShown) ev('offer_taken', { offer: 'free_pad' });
+    const keep = (finalSim || sim).log.slice();
+    replay = null; finalSim = null;
+    padBonus++;
+    sim = simCreate(levelCfg());
+    for (const c of keep) { while (sim.tick < c.tick) simTick(sim); simCmd(sim, c.type, c.target); }
+    acc = 0;
+  }
+});
+
+// The one thing a playable ad must do: hand the tap to whatever is hosting it.
+// Networks differ, so try MRAID, then the plain link, and never throw.
+el('cta').addEventListener('click', e => {
+  e.preventDefault(); e.stopPropagation();
+  const url = 'https://iqbalopu.github.io/loop-proto/';
+  try {
+    if (window.mraid && typeof window.mraid.open === 'function') { window.mraid.open(url); return; }
+    if (typeof window.FbPlayableAd === 'object' && window.FbPlayableAd.onCTAClick) { window.FbPlayableAd.onCTAClick(); return; }
+    window.open(url, '_blank');
+  } catch (err) { /* a dead host must not break the ad */ }
+});
+
+/* @dev-only */
+window.__cargo = {
+  sim: () => sim, SIM, variant: VARIANT, levels: SET,
+  log: () => LOG, dump: dumpLog,
+  clean: on => document.body.classList.toggle('capture', on !== false),
+  goto(i) { levelIdx = clamp(i, 0, SET.length - 1); store(PROGRESS_KEY, String(levelIdx)); startRun(); },
+  cmd: (type, target) => simCmd(sim, type, target),
+  replay: () => simReplay(SET[levelIdx], sim.log)
+};
+/* @end-dev */
+
+loadLevel();
+boot();
+})();
+</script>
+</body>
+</html>
