@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Never let the client decide the rules — Iqbal Hossain</title>
+<meta name="description" content="Unity Addressables against server-authoritative config: one architectural decision that solves shipping speed and trust at the same time.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Never let the client decide the rules">
+<meta property="og:description" content="Unity Addressables against server-authoritative config: one architectural decision that solves shipping speed and trust at the same time.">
+<link rel="stylesheet" href="blog.css">
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="../">← The village</a>
+  <a href="./">All writing</a>
+  <span class="who">Iqbal Hossain</span>
+</nav>
+
+<div class="wrap">
+<article>
+
+<h1>Never let the client decide the rules</h1>
+<p class="meta">Addressables &amp; server-authoritative config · <b>architecture</b> · ~7 min read</p>
+
+<p class="standfirst">
+Two problems that look unrelated — how fast can we ship a change, and can we trust what the player's phone
+tells us — turn out to have the same answer. It's the decision I'd defend hardest across the titles I work on.
+</p>
+
+<p>
+Across <strong>Brick Blaster Cash</strong>, <strong>Cashout Bingo</strong> and <strong>Blinko</strong>, content
+loads through Unity Addressables, and what loads — along with the values that govern how the game behaves — is
+decided by configuration that lives on the server. The client asks what the rules are. It does not decide them,
+and it does not ship with them.
+</p>
+
+<p>
+That sounds like ordinary remote config. The difference is in the word <em>authoritative</em>, and it matters
+more than it sounds.
+</p>
+
+<h2>Problem one: shipping without shipping</h2>
+
+<p>
+A competitive game is tuned continuously. You watch how matches play out, you find that a value is slightly
+wrong, you change it. On a title where <a href="balance-when-money-is-on-the-line.html">balance is the
+product</a>, that loop runs constantly.
+</p>
+
+<p>
+If those values are compiled into the build, every adjustment costs you a store submission and a review
+queue. The real cost isn't the waiting. It's that your player base splits: some people have the new build,
+some have the old one, and in a game where those people compete <em>against each other</em>, they are now
+playing two subtly different games. That isn't a delay. It's a correctness problem.
+</p>
+
+<p>
+Move the values server-side and the loop closes in minutes instead of days, and everybody is playing the same
+game at the same moment because there is only one source for what the game is.
+</p>
+
+<div class="callout">
+  <span class="tag">The same applies to content</span>
+  <p>
+    Addressables take this past numbers and into assets. Content is not baked into the binary; it is fetched
+    on demand from a catalogue the server points at. New content reaches players without a client release at
+    all — and the install stays small, which matters enormously when your only storefront is the App Store
+    and every megabyte you add costs you installs at the top of the funnel.
+  </p>
+</div>
+
+<h2>Problem two: the phone is not a witness you can trust</h2>
+
+<p>
+Here is the part that changes the architecture rather than just the workflow.
+</p>
+
+<p>
+When there is real money on the outcome of a match, every value that influences that outcome is a target. If
+the client holds the rules — scoring weights, difficulty parameters, what a given action is worth — then the
+client can be made to lie about them. Not by most players. By enough of them, and that is all it takes: one
+exploit shared in a forum becomes a payout problem, a fairness problem for everyone who played honestly, and
+a compliance problem for the business.
+</p>
+
+<blockquote>
+The device is never the source of truth about anything that decides a payout.
+</blockquote>
+
+<p>
+"Server-authoritative" means the server is not just a convenient place to store values. It is the only place
+they exist as truth. The client receives them, uses them to render and to play, and is treated throughout as
+something that might be wrong or hostile. Match results are validated against what the server knows the rules
+to have been, not against what the client claims they were.
+</p>
+
+<p>
+This is the same instinct behind any authoritative multiplayer server. What surprised me is how much of it
+applies to a game that is, mechanically, single-player. You're not competing in real time against an
+opponent in Brick Blaster — you're both playing a run and comparing scores. There's no netcode to speak of.
+And yet the trust model has to be just as strict, because the money is just as real.
+</p>
+
+<h2>Why it's one decision and not two</h2>
+
+<p>
+You could solve these separately. You could use remote config for tuning speed, and bolt on validation for
+trust. Plenty of games do, and the result is two systems that disagree with each other at the edges — the
+config the client fetched, and the config the validator believes in. Every disagreement is a bug that surfaces
+as a wrong payout, which is the worst possible place for a bug to surface.
+</p>
+
+<p>
+Making the config authoritative collapses both into one thing. There is a single description of what the game
+currently is. The client renders it, the validator judges against it, live-ops edits it. No reconciliation,
+because there's nothing to reconcile.
+</p>
+
+<h2>What it costs</h2>
+
+<p>
+I'd be misrepresenting this if I only listed the wins.
+</p>
+
+<ul>
+  <li>
+    <strong>The game must survive a bad network.</strong> If the rules come from the server, the client needs
+    a sane, well-defined behaviour when the server is slow or unreachable — and "fail open with baked-in
+    defaults" is exactly the hole you were trying to close. This is the hard part and it deserves design
+    attention rather than a fallback constant.
+  </li>
+  <li>
+    <strong>Config becomes production.</strong> Once a value change reaches players in minutes, a careless
+    edit is an outage. It needs review, history and a way back, the same as code.
+  </li>
+  <li>
+    <strong>Addressables are an operational commitment.</strong> Catalogues get versioned, assets get
+    orphaned, and a stale catalogue pointed at a missing bundle is a very confusing crash. Convenient at
+    runtime, real work to keep tidy.
+  </li>
+</ul>
+
+<h2>Worth it?</h2>
+
+<p>
+For a portfolio of live competitive titles, unquestionably. The tuning loop is the live-ops capability — being
+able to correct balance the day you notice it rather than the following week is the difference between a
+healthy competitive game and a slowly rotting one. And the trust property isn't a feature you can retrofit
+once real money is flowing; it has to be the shape of the thing from the start.
+</p>
+
+<p>
+If I were starting a new title tomorrow with money on the outcome, this is the first architectural decision
+I'd make, before writing a line of gameplay.
+</p>
+
+</article>
+
+<div class="endnote">
+  <p>
+    I'm Technical Director at FlyCow Games, where I own the shared SDK, the game servers, the build pipeline
+    and platform integrity across our titles. More of the work is <a href="../">in the village</a>.
+  </p>
+  <div class="nextprev">
+    <a href="balance-when-money-is-on-the-line.html">← Balance when money's on the line</a>
+    <a href="games-you-play-with-real-objects.html">Next: games you play with real objects →</a>
+  </div>
+</div>
+
+</div>
+</body>
+</html>

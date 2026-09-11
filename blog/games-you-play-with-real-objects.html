@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Games you play with real objects — Iqbal Hossain</title>
+<meta name="description" content="A surfboard, a bicycle and a cricket bat with a controller in the handle. What building games around custom physical hardware teaches you.">
+<meta property="og:type" content="article">
+<meta property="og:title" content="Games you play with real objects">
+<meta property="og:description" content="A surfboard, a bicycle and a cricket bat with a controller in the handle. What building games around custom physical hardware teaches you.">
+<link rel="stylesheet" href="blog.css">
+</head>
+<body>
+
+<nav class="topbar">
+  <a href="../">← The village</a>
+  <a href="./">All writing</a>
+  <span class="who">Iqbal Hossain</span>
+</nav>
+
+<div class="wrap">
+<article>
+
+<h1>Games you play with real objects</h1>
+<p class="meta">Alienide Interactive, 2017–2019 · <b>XR &amp; physical interfaces</b> · ~7 min read</p>
+
+<p class="standfirst">
+Early in my career I spent two years building games where the controller wasn't a controller. It was a
+surfboard someone had built, or a bicycle, or a cricket bat with a Vive tracker bolted into the handle. It
+remains the strangest and most instructive work I've done.
+</p>
+
+<p>
+These were location-based experiences — installations, not products you download. Someone walks up, gets on
+a physical thing, and plays. That framing changes almost everything about how the software has to behave.
+</p>
+
+<h2>The catalogue</h2>
+
+<ul>
+  <li><strong>Big Kahuna</strong> (released as <em>Into the Blue</em>) — a VR surf simulator. You stand on an
+  actual surfboard and a tracker turns your balance into steering.</li>
+  <li><strong>Mojo Pitha Chor</strong> — a chase game you play by pedalling a real bicycle through a
+  recreation of Old Dhaka, complete with an automated traffic system.</li>
+  <li><strong>Wing Glider</strong> — you lie down on a purpose-built glider rig to fly.</li>
+  <li><strong>Clemon Cricket</strong> — partial VR with no headset at all: a real cricket bat with a
+  controller in the handle. 25 runs in 2 overs.</li>
+  <li><strong>Fruit Ninja VR</strong> — the mobile classic, rebuilt for the Vive.</li>
+</ul>
+
+<figure>
+  <iframe src="https://www.youtube-nocookie.com/embed/QJX4x1kBplg" title="Mojo Pitha Chor" allowfullscreen loading="lazy"></iframe>
+  <figcaption>Mojo Pitha Chor — the bicycle is the controller.</figcaption>
+</figure>
+
+<h2>There is no documentation for a surfboard</h2>
+
+<p>
+When you build a normal game, almost every problem you hit has been hit before. There's a forum thread, a
+Unity issue, a Stack Overflow answer from 2016 with a green tick on it.
+</p>
+
+<p>
+When the input device is a plywood surfboard with a tracker screwed to it, none of that exists. Not because
+the problem is intellectually harder, but because you are the first person to have this specific object in
+this specific room. Every question — how much does the board tilt before a rider means to turn, what counts
+as a pedal stroke versus a wobble, where exactly is the bat's sweet spot in tracker space — has to be
+answered empirically, by you, with the thing in front of you.
+</p>
+
+<blockquote>
+It's the closest game development gets to engineering against reality.
+</blockquote>
+
+<p>
+You end up building calibration tooling before you build gameplay. Not because it's good practice, but
+because nothing works until the software agrees with the physical object about where it is and what it's
+doing.
+</p>
+
+<h2>Physical rigs drift, and people are not careful</h2>
+
+<p>
+A gamepad is the same on day one and day two hundred. A physical rig isn't. Mountings loosen. Someone moves
+the base station to plug in a vacuum cleaner. The board gets stood on by somebody twice the weight of anyone
+you tested with. A tracker's battery dies mid-session, and the recovery behaviour of your game is now a
+customer-facing feature.
+</p>
+
+<p>
+So you learn to write software that assumes its own inputs are unreliable and its environment is being
+rearranged behind your back. Recalibration can't be a developer tool; it has to be something the person
+running the installation can do in thirty seconds between players, without instruction.
+</p>
+
+<h2>The thing that changed how I work</h2>
+
+<p>
+Installations mean you stand next to strangers while they play.
+</p>
+
+<p>
+I cannot overstate what this does to you as a developer. You watch someone approach the bicycle and hesitate
+because it isn't obvious they're allowed to touch it. You watch someone lean on the surfboard in a direction
+you never considered. You watch a person completely miss the instruction you spent a week wording, because
+they were looking at the screen, not the sign. You see the exact half-second where somebody understands the
+game, or doesn't.
+</p>
+
+<p>
+Most developers never get this. You ship into an analytics dashboard and you infer: retention dipped at this
+step, so something is wrong there, probably. Inference is a genuine skill and I use it every day now on live
+mobile titles. But watching someone's hands is worth an enormous amount of inference, and having done both,
+I think the hands teach you faster.
+</p>
+
+<h2>And the deadline does not move</h2>
+
+<p>
+A lot of this work was branded — arcade titles for Skitto (Grameenphone), a road-safety game for Unilever,
+an AR app for a furniture retailer. Branded work has a property that product work doesn't: a campaign has a
+date, and the date is not negotiable. The event happens whether you are ready or not.
+</p>
+
+<p>
+That's uncomfortable and it's good for you. It forces you to be honest much earlier about what will actually
+be finished, and it kills the instinct to keep polishing something that's already fine at the expense of
+something that isn't built yet.
+</p>
+
+<h2>What I carried into mobile</h2>
+
+<p>
+I work on competitive mobile games now — very different constraints, no plywood involved. But three things
+came with me:
+</p>
+
+<ul>
+  <li><strong>Assume your inputs are lying.</strong> On a rig it was a drifting tracker. On a real-money
+  mobile title it's the client, which
+  <a href="server-authoritative-config.html">should never be the source of truth about the rules</a>. Same
+  instinct, different threat.</li>
+  <li><strong>Recovery is a feature.</strong> What the software does when something has gone wrong is part
+  of the product, not an edge case to handle later.</li>
+  <li><strong>Watch people, not just dashboards.</strong> Whenever I can get in front of an actual player, I
+  take it.</li>
+</ul>
+
+<p>
+I'd build another one of these tomorrow.
+</p>
+
+</article>
+
+<div class="endnote">
+  <p>
+    Footage from the
+    <a href="https://www.youtube.com/@AlienideInteractive" target="_blank" rel="noopener">Alienide Interactive</a>
+    channel. There's more XR work — including the AR apps — <a href="../">in the village</a>.
+  </p>
+  <div class="nextprev">
+    <a href="server-authoritative-config.html">← Never let the client decide the rules</a>
+    <a href="./">All writing</a>
+  </div>
+</div>
+
+</div>
+</body>
+</html>
