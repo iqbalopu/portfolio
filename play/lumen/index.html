@@ -202,6 +202,12 @@ function hud(){$('mvN').textContent=G.moves;$('mv').classList.toggle('low',G.mov
 let DPR=1,CS=40,OX=0,OY=0,W=0,H=0;
 function layout(){const r=stage.getBoundingClientRect();DPR=Math.min(3,window.devicePixelRatio||1);W=r.width;H=r.height;cv.width=Math.round(W*DPR);cv.height=Math.round(H*DPR);
   if(!G.P)return;const L=G.P.L;CS=Math.floor(Math.min((W-8)/L.w,(H-8)/L.h));OX=Math.round((W-CS*L.w)/2);OY=Math.round((H-CS*L.h)/2)}
+// The board is sized from the stage box, so every resize has to recompute it:
+// without this a rotated phone or a dragged window kept the cell size from
+// whenever the level loaded, and taps landed on the wrong squares. The frame
+// loop redraws continuously, so re-laying out is the whole fix.
+addEventListener('resize',layout);
+addEventListener('orientationchange',()=>setTimeout(layout,120));
 new ResizeObserver(layout).observe(stage);
 const px=x=>OX+(x+.5)*CS,py=y=>OY+(y+.5)*CS;
 // ---------- input ----------

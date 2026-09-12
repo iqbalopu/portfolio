@@ -37,13 +37,44 @@
   .stores a:hover{background:var(--gold)}
   .tag{font-family:var(--mono);font-size:12px;font-weight:700;letter-spacing:.08em;
     text-transform:uppercase;color:var(--accent);display:block;margin-bottom:8px}
+  /* The play area is measured from the viewport, never in fixed pixels, so one
+     page serves a 360 px phone and a 4K monitor. --ar is the game's own aspect;
+     the max-width is what the height budget allows at that aspect, which is how
+     the box stays whole instead of being clipped on a short screen.
+     --vh is a dynamic viewport unit where there is one: on mobile Safari 1vh is
+     measured against the *retracted* chrome, so 78vh can be taller than the
+     page you can actually see. */
+  :root{--vh:1vh;--budget:78}
+  @supports (height:1dvh){:root{--vh:1dvh}}
+  @media (orientation:landscape) and (pointer:coarse){:root{--budget:94}}
+  .stage{position:relative;width:100%;margin:0 auto;overflow:hidden;
+    aspect-ratio:var(--ar);max-width:calc(var(--vh) * var(--budget) * var(--ar));
+    border:3px solid var(--ink);border-radius:12px;
+    box-shadow:0 4px 0 var(--ink);background:#11161c}
+  .stage.portrait{--ar:0.5625}
+  .stage.landscape{--ar:1.7778}
+  .stage iframe{position:absolute;inset:0;width:100%;height:100%;border:0;display:block}
   /* The frame has to match the game's own orientation. A landscape game in a
      portrait frame sees a portrait viewport and correctly asks you to rotate,
      which on a desktop is impossible and looks broken. */
-  .frame{width:100%;border:3px solid var(--ink);border-radius:12px;
-    box-shadow:0 4px 0 var(--ink);background:#11161c;display:block}
-  .frame.portrait{aspect-ratio:9/16;max-height:78vh;margin:0 auto;max-width:calc(78vh * 9 / 16)}
-  .frame.landscape{aspect-ratio:16/9}
+  .rotate{display:none;position:absolute;inset:0;z-index:2;place-items:center;
+    background:#11161c;color:#f3f0e7;text-align:center;padding:24px;font-family:var(--mono)}
+  .rotate b{display:block;font-size:18px;margin:0 0 6px}
+  .rotate span{font-size:14px;color:#9aa6a0}
+  .rotate .phone{width:34px;height:56px;border:3px solid currentColor;border-radius:8px;
+    margin:0 auto 16px;animation:tip 2.4s ease-in-out infinite}
+  @keyframes tip{0%,24%{transform:rotate(0)}54%,82%{transform:rotate(-90deg)}100%{transform:rotate(0)}}
+  @media (prefers-reduced-motion:reduce){.rotate .phone{animation:none;transform:rotate(-90deg)}}
+  /* A landscape game on a phone held upright. Shrinking it to a 16:9 strip is
+     worse than asking, so the frame turns portrait with the device: the game
+     inside then sees a portrait viewport, pauses itself and stops its sound,
+     and this panel covers it. Rotating clears both at once. Desktop windows are
+     narrow sometimes too, hence pointer:coarse rather than a width. */
+  @media (orientation:portrait) and (pointer:coarse){
+    .stage.landscape{--ar:0.75;max-width:none}
+    .stage.landscape .rotate{display:grid}
+  }
+  @media (max-width:640px){body{padding:0 12px 60px}}
   .row{display:flex;flex-wrap:wrap;gap:10px;margin:22px 0 0}
   .row a{font-family:var(--mono);font-size:13px;font-weight:700;color:var(--ink);
     text-decoration:none;background:var(--paper);border:3px solid var(--ink);
@@ -67,8 +98,10 @@
   <h1>Lumen Relay</h1>
   <p class="lede">Tap mirrors to bend light into the crystals, without touching a bomb.</p>
 
-  <iframe class="frame portrait" id="game" src="lumen/" title="Lumen Relay"
-          allow="autoplay; fullscreen" loading="lazy"></iframe>
+  <div class="stage portrait" id="stage">
+    <iframe id="game" src="lumen/" title="Lumen Relay"
+            allow="autoplay; fullscreen" loading="lazy"></iframe>
+  </div>
   <div class="note" id="nomobile" hidden>
     <p><b>This one needs a desktop browser.</b> It will not run properly on a phone,
     so rather than show you a broken canvas, here are the places it does work.</p>
@@ -83,7 +116,7 @@
   <dl>
     <dt>Built with</dt><dd>Vanilla JS, one HTML file, no engine</dd>
     <dt>Size</dt><dd>38 KB, one file, no external requests</dd>
-    <dt>Updated</dt><dd>2026-09-11</dd>
+    <dt>Updated</dt><dd>2026-09-12</dd>
   </dl>
 
 
@@ -95,7 +128,7 @@
     var isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent)
       || (navigator.maxTouchPoints > 1 && /Mac/.test(navigator.platform));
     if (!mobileOK && isMobile) {
-      document.getElementById('game').remove();
+      document.getElementById('stage').remove();
       document.getElementById('nomobile').hidden = false;
     }
   })();
